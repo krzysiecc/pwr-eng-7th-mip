@@ -15,3 +15,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "pwr-eng-7th-mip"
 
+include(":androidApp")
+include(":composeApp")
