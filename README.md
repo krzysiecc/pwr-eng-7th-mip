@@ -1,18 +1,27 @@
-# pwr-eng-7th-mip
+# Morsik
 
-Open-source Kotlin Multiplatform boilerplate project for **Programowanie Interfejsów Mobilnych** at Politechnika Wrocławska.
+Aplikacja na Androida, która nadaje wpisany tekst alfabetem Morse'a: latarką, wibracjami i dźwiękiem.
 
-## Requirements covered
+Projekt zespołu **DN** na przedmiot *Programowanie Interfejsów Mobilnych* (Politechnika Wrocławska, semestr zimowy 2026/27).
 
-- **Android Studio**: targeted for `2026.2.1 Rabbit 1`
-- **License**: MIT (`/LICENSE`)
-- **UI stack**: Jetpack Compose / Compose Multiplatform (Material 3)
-- **Open-source**: repository is public-ready with MIT licensing
-- **Cross-platform baseline**:
-  - Android target
-  - iOS targets (`iosX64`, `iosArm64`, `iosSimulatorArm64`)
-  - WebAssembly target (`wasmJs`)
+## Technologie
 
-## Boilerplate origin
+- Kotlin + Jetpack Compose (Material 3)
+- Android Studio `2026.2.1 Rabbit 1`
+- Android 8.0 (API 26) lub nowszy
+- Latarka: `CameraManager`, wibracje: `Vibrator`, dźwięk: `ToneGenerator`, mowa na tekst: `SpeechRecognizer`
 
-This repository structure follows the official Kotlin Multiplatform + Compose boilerplate style used by JetBrains/Kotlin tooling (module layout with shared `commonMain` and per-platform source sets).
+## Struktura
+
+- `composeApp` - współdzielony kod: ekrany Compose i logika alfabetu Morse'a
+- `androidApp` - aplikacja Android: `MainActivity` i implementacje funkcji sprzętowych
+
+## Uruchomienie
+
+```
+./gradlew :androidApp:installDebug
+```
+
+## Licencja
+
+MIT, zobacz [LICENSE](LICENSE).

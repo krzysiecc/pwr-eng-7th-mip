@@ -1,4 +1,4 @@
-package pl.pwr.mip
+package pl.dn.morsik
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -19,8 +19,8 @@ fun App() {
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Text("Programowanie Interfejsów Mobilnych")
-                Text("Android • iOS • WebAssembly")
+                Text("Morsik")
+                Text("Nadawanie alfabetem Morse'a")
             }
         }
     }
