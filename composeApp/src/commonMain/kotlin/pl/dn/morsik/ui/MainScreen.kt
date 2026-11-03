@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -39,6 +40,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -167,11 +169,18 @@ private fun String.toDisplayCode() = map { if (it == '.') "·" else "–" }.join
 
 @Composable
 private fun LetterPreview(letters: List<LetterUi>, activeLetter: Int?) {
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    val listState = rememberLazyListState()
+    // Keep the letter being transmitted in view, or the last typed one while editing.
+    LaunchedEffect(letters.size, activeLetter) {
+        val target = activeLetter ?: letters.lastIndex
+        if (target >= 0) listState.animateScrollToItem(target)
+    }
+    LazyRow(state = listState, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         itemsIndexed(letters) { index, letter ->
             val active = index == activeLetter
             Column(
                 modifier = Modifier
+                    .padding(start = if (letter.startsWord) 16.dp else 0.dp)
                     .width(96.dp)
                     .clip(MaterialTheme.shapes.medium)
                     .background(if (active) MorsikGreen else MorsikPink)
