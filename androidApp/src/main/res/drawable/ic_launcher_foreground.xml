@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kropka i kreska (litera "A" w Morsie) na środku. System przycina ikonę do okręgu 72 dp z 108 dp,
+     dlatego wszystko mieści się w przedziale 18..90. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M33,54m-8,0a8,8 0,1 1,16 0a8,8 0,1 1,-16 0" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M56,46h19a8,8 0,0 1,0 16h-19a8,8 0,0 1,0 -16z" />
+</vector>

@@ -26,7 +26,19 @@ import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.unit.DpOffset
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.backhandler.BackHandler
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -64,8 +76,6 @@ import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Vibration
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
@@ -127,6 +137,7 @@ import androidx.compose.ui.unit.sp
  * @param onUnitMsChange przesunięcie suwaka szybkości (nowa wartość w ms)
  * @param onStop kliknięcie Stop
  */
+@OptIn(ExperimentalComposeUiApi::class) // BackHandler jest jeszcze oznaczony jako eksperymentalny
 @Composable
 fun MainScreen(
     state: MainUiState,
@@ -139,87 +150,86 @@ fun MainScreen(
     onStop: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // Czy menu jest otwarte - to czysto "wizualny" stan, więc trzyma go sam ekran, a nie ViewModel.
+    // rememberSaveable (zamiast remember) = przetrwa też obrót ekranu.
+    var menuOpen by rememberSaveable { mutableStateOf(false) }
+    // Rozmycie ekranu pod menu rośnie płynnie. Modifier.blur działa od Androida 12; na starszych
+    // zostaje tylko półprzezroczysta zasłona z [MenuOverlay].
+    val blur by animateDpAsState(if (menuOpen) 16.dp else 0.dp, label = "menuBlur")
+    val focusManager = LocalFocusManager.current
+
+    // Systemowy przycisk/gest Wstecz najpierw zamyka menu (wygrywa z BackHandlerem w App, bo jest "głębiej").
+    BackHandler(enabled = menuOpen) { menuOpen = false }
+
+    // Box = elementy jeden na drugim: ekran, a nad nim (gdy menu otwarte) zasłona i menu.
     // safeDrawingPadding = nie wchodzimy pod pasek stanu, wycięcie aparatu ani klawiaturę.
     // paneTitle: po powrocie z Pomocy TalkBack ogłosi, że to znowu ekran główny.
-    Column(modifier = modifier.fillMaxSize().safeDrawingPadding().semantics { paneTitle = Strings.AppName }) {
+    Box(modifier = modifier.fillMaxSize().safeDrawingPadding().semantics { paneTitle = Strings.AppName }) {
         Column(
             modifier = Modifier
-                .weight(1f) // zajmij całe wolne miejsce nad przyciskiem Stop
-                .verticalScroll(rememberScrollState()) // na małym ekranie da się przewinąć
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp), // 12 dp odstępu między sekcjami
+                .fillMaxSize()
+                .blur(blur)
+                // Gdy menu jest otwarte, czytnik ekranu nie ma wchodzić w rozmyty ekran pod spodem.
+                .then(if (menuOpen) Modifier.clearAndSetSemantics {} else Modifier),
         ) {
-            Header(onOpen = onOpen)
-            MessageField(
-                message = state.message,
-                onMessageChange = onMessageChange,
-                onDictate = onDictate,
-                onStart = onStart,
-                readOnly = state.isTransmitting, // w trakcie nadawania nie zmieniamy tekstu
-            )
-            CodePreview(letters = state.letters, activeLetter = state.transmission?.activeLetter)
-            StatusLine(state = state)
-            SignalIndicator(signal = state.activeSignal, signalOn = state.transmission?.signalOn == true)
-            ChannelToggles(channels = state.channels, onChange = onChannelsChange)
-            SpeedControl(unitMs = state.unitMs, onUnitMsChange = onUnitMsChange)
+            Column(
+                modifier = Modifier
+                    .weight(1f) // zajmij całe wolne miejsce nad przyciskami
+                    .verticalScroll(rememberScrollState()) // na małym ekranie da się przewinąć
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp), // 12 dp odstępu między sekcjami
+            ) {
+                Header(onMenu = {
+                    focusManager.clearFocus() // chowa klawiaturę, żeby nie wisiała nad menu
+                    menuOpen = true
+                })
+                MessageField(
+                    message = state.message,
+                    onMessageChange = onMessageChange,
+                    onDictate = onDictate,
+                    onStart = onStart,
+                    readOnly = state.isTransmitting, // w trakcie nadawania nie zmieniamy tekstu
+                )
+                CodePreview(letters = state.letters, activeLetter = state.transmission?.activeLetter)
+                StatusLine(state = state)
+                SignalIndicator(signal = state.activeSignal, signalOn = state.transmission?.signalOn == true)
+                ChannelToggles(channels = state.channels, onChange = onChannelsChange)
+                SpeedControl(unitMs = state.unitMs, onUnitMsChange = onUnitMsChange)
+            }
+            // Nadaj i Stop w jednej linii (po równo), dzięki czemu cały ekran mieści się bez przewijania.
+            Row(modifier = Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                StartButton(enabled = state.canStart, onClick = onStart, modifier = Modifier.weight(1f))
+                StopButton(enabled = state.isTransmitting, onClick = onStop, modifier = Modifier.weight(1f))
+            }
         }
-        // Nadaj i Stop w jednej linii (po równo), dzięki czemu cały ekran mieści się bez przewijania.
-        Row(modifier = Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            StartButton(enabled = state.canStart, onClick = onStart, modifier = Modifier.weight(1f))
-            StopButton(enabled = state.isTransmitting, onClick = onStop, modifier = Modifier.weight(1f))
-        }
+        MenuOverlay(
+            open = menuOpen,
+            onClose = { menuOpen = false },
+            onOpen = { screen ->
+                menuOpen = false
+                onOpen(screen)
+            },
+        )
     }
 }
 
-/** Górny pasek: nazwa aplikacji, plakietka z nazwą zapisaną Morse'em i przycisk menu. */
+/** Górny pasek: nazwa aplikacji dużymi literami i przycisk menu przy prawej krawędzi. */
 @Composable
-private fun Header(onOpen: (Screen) -> Unit) {
+private fun Header(onMenu: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // Lewa część (nazwa + plakietka) zajmuje całe miejsce oprócz przycisku menu,
-        // dzięki czemu przycisk zawsze jest przy prawej krawędzi.
-        Row(
-            modifier = Modifier.weight(1f),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Text(Strings.AppName, modifier = Modifier.semantics { heading() }, style = MaterialTheme.typography.headlineMedium)
-            Text(
-                text = Strings.AppNameMorse,
-                modifier = Modifier
-                    // fill = false: plakietka ma swoją naturalną szerokość, ale skurczy się,
-                    // gdy brakuje miejsca (np. duża czcionka w ustawieniach telefonu)...
-                    .weight(1f, fill = false)
-                    .background(MorsikRed, CircleShape)
-                    .padding(horizontal = 10.dp, vertical = 3.dp)
-                    // ...a czytnik ekranu ją pomija - to tylko ozdoba, nazwa jest już obok.
-                    .clearAndSetSemantics {},
-                color = Color.White,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 1.sp,
-                maxLines = 1, // zawsze jedna linia...
-                overflow = TextOverflow.Ellipsis, // ...a jeśli się nie mieści, na końcu "…" zamiast ucięcia
-            )
-        }
-        HeaderMenu(onOpen = onOpen)
-    }
-}
-
-/** Przycisk menu i rozwijane pod nim menu: Pomoc, Deklaracja dostępności, O aplikacji. */
-@Composable
-private fun HeaderMenu(onOpen: (Screen) -> Unit) {
-    // Czy menu jest rozwinięte - to czysto "wizualny" stan tego przycisku, więc trzyma go sam ekran,
-    // a nie ViewModel. rememberSaveable (zamiast remember) = przetrwa też obrót ekranu.
-    var expanded by rememberSaveable { mutableStateOf(false) }
-
-    // Box = menu pojawia się przy przycisku, który jest w tym samym Boxie.
-    Box {
+        Text(
+            text = Strings.AppName.uppercase(),
+            // weight(1f) = nazwa zajmuje całe miejsce oprócz przycisku menu, który zawsze jest po prawej.
+            modifier = Modifier.weight(1f).semantics { heading() },
+            style = MaterialTheme.typography.headlineMedium,
+            letterSpacing = 3.sp, // duże litery lepiej wyglądają z lekkim rozstrzeleniem
+        )
         // FilledIconButton sam pilnuje minimalnego pola dotyku 48 dp i efektu kliknięcia.
         FilledIconButton(
-            onClick = { expanded = true },
+            onClick = onMenu,
             modifier = Modifier.size(48.dp),
             shape = MaterialTheme.shapes.medium,
             colors = IconButtonDefaults.filledIconButtonColors(containerColor = MorsikGrey, contentColor = MorsikInk),
@@ -227,30 +237,89 @@ private fun HeaderMenu(onOpen: (Screen) -> Unit) {
             // contentDescription = co powie TalkBack o tym przycisku.
             Icon(Icons.Filled.Menu, contentDescription = Strings.Menu)
         }
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }, // dotknięcie obok albo Wstecz zamyka menu
-            offset = DpOffset(0.dp, 15.dp), // 15 dp luzu pod przyciskiem, żeby menu go nie dotykało
-            shape = RoundedCornerShape(4.dp), // prawie proste rogi
-            containerColor = MorsikGrey, // ciemny tekst na szarym: kontrast sprawdzony w ThemeContrastTest
+    }
+}
+
+/**
+ * Menu: zasłona (rozmyty ekran jest już pod spodem) i biała karta na środku z marginesem, która
+ * wjeżdża z prawej strony. Dotknięcie zasłony albo strzałki Wstecz zamyka menu.
+ */
+@Composable
+private fun MenuOverlay(open: Boolean, onClose: () -> Unit, onOpen: (Screen) -> Unit) {
+    // Zasłona: lekko wybiela rozmyty ekran (na Androidzie < 12, bez blur, jest jedynym wygaszeniem).
+    AnimatedVisibility(visible = open, enter = fadeIn(), exit = fadeOut()) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.White.copy(alpha = 0.55f))
+                // Dotknięcie obok karty zamyka menu. Dla TalkBacka jest do tego strzałka, więc zasłona
+                // nie ma własnych semantyk.
+                .pointerInput(Unit) { detectTapGestures { onClose() } }
+                .clearAndSetSemantics {},
+        )
+    }
+    AnimatedVisibility(
+        visible = open,
+        enter = slideInHorizontally(initialOffsetX = { it }) + fadeIn(),
+        exit = slideOutHorizontally(targetOffsetX = { it }) + fadeOut(),
+    ) {
+        val shape = MaterialTheme.shapes.large
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp) // marginesy: karta nie dotyka krawędzi ekranu
+                .shadow(16.dp, shape)
+                .clip(shape)
+                .background(Color.White)
+                .border(2.dp, MorsikGrey, shape)
+                // Puste miejsce na karcie połyka dotknięcia, żeby nie "przeciekały" do zasłony i nie zamykały menu.
+                .pointerInput(Unit) { detectTapGestures { } }
+                .semantics { paneTitle = Strings.Menu }
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            MenuItem(Strings.Help, Icons.AutoMirrored.Filled.HelpOutline) { expanded = false; onOpen(Screen.Help) }
-            MenuItem(Strings.Accessibility, Icons.Filled.Accessibility) { expanded = false; onOpen(Screen.Accessibility) }
-            MenuItem(Strings.About, Icons.Filled.Info) { expanded = false; onOpen(Screen.About) }
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                // Ten sam przycisk Wstecz co na ekranach Pomocy i deklaracji (spójność, WCAG 3.2.4).
+                FilledIconButton(
+                    onClick = onClose,
+                    modifier = Modifier.size(48.dp),
+                    shape = MaterialTheme.shapes.medium,
+                    colors = IconButtonDefaults.filledIconButtonColors(containerColor = MorsikGrey, contentColor = MorsikInk),
+                ) {
+                    // AutoMirrored = strzałka sama się odwraca w językach pisanych od prawej do lewej.
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = Strings.Back)
+                }
+                Text(
+                    text = Strings.Menu,
+                    modifier = Modifier.weight(1f).semantics { heading() },
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MorsikInk,
+                )
+            }
+            MenuItem(Strings.Help, Icons.AutoMirrored.Filled.HelpOutline) { onOpen(Screen.Help) }
+            MenuItem(Strings.Accessibility, Icons.Filled.Accessibility) { onOpen(Screen.Accessibility) }
+            MenuItem(Strings.About, Icons.Filled.Info) { onOpen(Screen.About) }
         }
     }
 }
 
-/** Jedna pozycja menu. Ikona to ozdoba, TalkBack czyta podpis. Wysokość min. 48 dp zapewnia Material. */
+/** Jedna pozycja menu: duży szary pasek z ikoną i podpisem. Ikona to ozdoba, TalkBack czyta podpis. */
 @Composable
 private fun MenuItem(label: String, icon: ImageVector, onClick: () -> Unit) {
-    DropdownMenuItem(
-        text = { Text(label, style = MaterialTheme.typography.bodyLarge, color = MorsikInk) },
-        onClick = onClick,
-        leadingIcon = { Icon(icon, contentDescription = null, tint = MorsikInk) },
-        // Większe wcięcia: pozycje są wyższe i szersze niż domyślnie.
-        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 14.dp),
-    )
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 64.dp)
+            .clip(MaterialTheme.shapes.medium)
+            .background(MorsikGrey)
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = 20.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Icon(icon, contentDescription = null, tint = MorsikInk)
+        Text(label, style = MaterialTheme.typography.bodyLarge, color = MorsikInk)
+    }
 }
 
 /**

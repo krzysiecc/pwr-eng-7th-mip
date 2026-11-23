@@ -9,7 +9,6 @@ package pl.dn.morsik.ui
  */
 object Strings {
     const val AppName = "Morsik"
-    const val AppNameMorse = "-- --- .-. ... .. -.-" // "MORSIK" alfabetem Morse'a
 
     const val MessageLabel = "WIADOMOŚĆ"
     const val MessagePlaceholder = "Wpisz wiadomość"
