@@ -1,4 +1,4 @@
-package pl.pwr.mip
+package pl.dn.morsik
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity

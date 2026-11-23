@@ -7,26 +7,11 @@ plugins {
 
 kotlin {
     android {
-        namespace = "pl.pwr.mip.composeapp"
+        namespace = "pl.dn.morsik.composeapp"
         compileSdk = libs.versions.android.compileSdk.get().toInt()
         minSdk = libs.versions.android.minSdk.get().toInt()
-    }
 
-    listOf(
-        iosX64(),
-        iosArm64(),
-        iosSimulatorArm64(),
-    ).forEach {
-        it.binaries.framework {
-            baseName = "ComposeApp"
-            isStatic = true
-        }
-    }
-
-    @OptIn(org.jetbrains.kotlin.gradle.ExperimentalWasmDsl::class)
-    wasmJs {
-        browser()
-        binaries.executable()
+        withHostTest {}
     }
 
     sourceSets {
@@ -34,7 +19,16 @@ kotlin {
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)
+            implementation(libs.compose.material.icons)
             implementation(libs.compose.ui)
+            implementation(libs.compose.ui.tooling.preview)
+        }
+        commonTest.dependencies {
+            implementation(libs.kotlin.test)
         }
     }
+}
+
+dependencies {
+    androidRuntimeClasspath(libs.compose.ui.tooling)
 }

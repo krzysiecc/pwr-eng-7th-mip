@@ -13,7 +13,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "pwr-eng-7th-mip"
+rootProject.name = "dn-morsik"
 
 include(":androidApp")
 include(":composeApp")

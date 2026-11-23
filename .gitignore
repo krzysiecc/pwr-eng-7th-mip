@@ -34,3 +34,6 @@ build/
 .idea/
 local.properties
 *.iml
+
+docs/
+PLAN.md

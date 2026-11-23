@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "pl.pwr.mip"
+    namespace = "pl.dn.morsik"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
 
     defaultConfig {
-        applicationId = "pl.pwr.mip"
+        applicationId = "pl.dn.morsik"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
