@@ -1,7 +1,27 @@
 package pl.dn.morsik.ui
 
-/** One letter of the message with its Morse code written as dots and dashes, e.g. "O" to "---". */
-data class LetterUi(val symbol: String, val code: String)
+import pl.dn.morsik.morse.Morse
+
+/**
+ * One letter of the message with its Morse code written as dots and dashes, e.g. "O" to "---".
+ * [startsWord] marks the first letter of every word after the first one, so the preview can show the word gap.
+ */
+data class LetterUi(val symbol: String, val code: String, val startsWord: Boolean = false)
+
+/**
+ * Letters to show under the message field, in transmission order.
+ * Characters without a Morse code (e.g. emoji, `#`) are left out, because they are not transmitted.
+ */
+fun previewLetters(message: String): List<LetterUi> =
+    Morse.encode(message)
+        .filter { it.isTransmittable }
+        .flatMapIndexed { wordIndex, word ->
+            word.letters
+                .mapNotNull { letter -> letter.code?.let { code -> letter.text.uppercase() to code } }
+                .mapIndexed { index, (symbol, code) ->
+                    LetterUi(symbol, code, startsWord = wordIndex > 0 && index == 0)
+                }
+        }
 
 enum class Signal { Dot, Dash }
 
@@ -26,6 +46,9 @@ data class MainUiState(
     val unitMs: Int = 250,
 ) {
     val activeLetter: LetterUi? get() = transmission?.let { letters.getOrNull(it.activeLetter) }
+
+    /** New message typed by the user, with the letter preview recomputed from it. */
+    fun withMessage(message: String): MainUiState = copy(message = message, letters = previewLetters(message))
 
     val activeSignal: Signal?
         get() {

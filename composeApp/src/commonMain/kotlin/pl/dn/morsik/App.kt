@@ -15,13 +15,13 @@ import pl.dn.morsik.ui.MorsikTheme
 
 @Composable
 fun App() {
-    var state by remember { mutableStateOf(MainUiState.Demo) }
+    var state by remember { mutableStateOf(MainUiState()) }
 
     MorsikTheme {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             MainScreen(
                 state = state,
-                onMessageChange = { state = state.copy(message = it) },
+                onMessageChange = { state = state.withMessage(it) },
                 onDictate = {},
                 onMenu = {},
                 onChannelsChange = { state = state.copy(channels = it) },
