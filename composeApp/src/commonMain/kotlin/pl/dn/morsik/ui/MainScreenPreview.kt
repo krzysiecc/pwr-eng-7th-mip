@@ -22,13 +22,13 @@ private fun MainScreenPreviewContent(state: MainUiState) {
     }
 }
 
-@Preview(name = "Nadawanie", showBackground = true, widthDp = 360, heightDp = 780)
+@Preview(name = "przekazywanie", showBackground = true, widthDp = 360, heightDp = 780)
 @Composable
 private fun MainScreenTransmittingPreview() {
     MainScreenPreviewContent(MainUiState.Demo)
 }
 
-@Preview(name = "Bezczynny", showBackground = true, widthDp = 360, heightDp = 780)
+@Preview(name = "idle", showBackground = true, widthDp = 360, heightDp = 780)
 @Composable
 private fun MainScreenIdlePreview() {
     MainScreenPreviewContent(MainUiState.Demo.copy(transmission = null))
