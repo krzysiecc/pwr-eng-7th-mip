@@ -415,7 +415,7 @@ private fun ChannelToggle(
     }
 }
 
-/** Suwak długości jednostki: od 400 ms (wolno, lewo) do 150 ms (szybko, prawo). */
+/** Suwak długości jednostki: od 400 ms (wolno, lewo) do 170 ms (szybko, prawo). */
 @Composable
 private fun SpeedControl(unitMs: Int, onUnitMsChange: (Int) -> Unit) {
     val valueText = Strings.speedValue(unitMs)

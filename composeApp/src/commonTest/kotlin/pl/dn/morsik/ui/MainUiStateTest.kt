@@ -42,9 +42,9 @@ class MainUiStateTest {
 
     @Test
     fun typingKeepsOtherSettings() {
-        val state = MainUiState(unitMs = 150, channels = ChannelsUi(sound = true)).withMessage("a")
+        val state = MainUiState(unitMs = 200, channels = ChannelsUi(sound = true)).withMessage("a")
 
-        assertEquals(150, state.unitMs)
+        assertEquals(200, state.unitMs)
         assertTrue(state.channels.sound)
     }
 
@@ -99,7 +99,7 @@ class MainUiStateTest {
 
     @Test
     fun sliderIsMirrored() {
-        // Wolno (400 ms) = lewy koniec suwaka (najmniejsza wartość), szybko (150 ms) = prawy koniec.
+        // Wolno (400 ms) = lewy koniec suwaka (najmniejsza wartość), szybko (170 ms) = prawy koniec.
         assertEquals(MainUiState.FastestUnitMs.toFloat(), MainUiState.sliderPosition(MainUiState.SlowestUnitMs))
         assertEquals(MainUiState.SlowestUnitMs.toFloat(), MainUiState.sliderPosition(MainUiState.FastestUnitMs))
     }
@@ -113,8 +113,8 @@ class MainUiStateTest {
 
     @Test
     fun sliderPositionIsRoundedToWholeMilliseconds() {
-        assertEquals(250, MainUiState.unitMsAt(299.6f)) // 550 - 300
-        assertEquals(251, MainUiState.unitMsAt(299.4f)) // 550 - 299
+        assertEquals(250, MainUiState.unitMsAt(319.6f)) // 570 - 320
+        assertEquals(251, MainUiState.unitMsAt(319.4f)) // 570 - 319
     }
 
     // --- wyświetlanie kodu ---

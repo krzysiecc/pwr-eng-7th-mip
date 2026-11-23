@@ -35,7 +35,7 @@ class Transmitter(private val timeSource: TimeSource = TimeSource.Monotonic) {
         onProgress: (TransmissionUi) -> Unit,
     ) {
         // Dlaczego nie samo `delay(czas kroku)` po kolei? Każdy delay trwa trochę dłużej niż zadano,
-        // a błędy się sumują (przy 150 ms/jednostka SOS rozjechałby się wyraźnie). Dlatego liczymy
+        // a błędy się sumują (przy 170 ms/jednostka SOS rozjechałby się wyraźnie). Dlatego liczymy
         // "ile czasu powinno minąć od startu" i czekamy tylko do tego momentu.
         val start = timeSource.markNow()
         var planned = Duration.ZERO

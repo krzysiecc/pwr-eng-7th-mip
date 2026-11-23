@@ -119,17 +119,23 @@ data class MainUiState(
 
     // companion object = rzeczy wspólne dla całej klasy, używane jako MainUiState.Nazwa.
     companion object {
-        /** Długość jednej jednostki (kropki) w milisekundach: 400 = wolno, 150 = szybko. */
+        /** Długość jednej jednostki (kropki) w milisekundach: 400 = wolno, 170 = szybko. */
         const val SlowestUnitMs = 400
-        const val FastestUnitMs = 150
+
+        /**
+         * Najszybciej 170 ms, a nie 150 ms jak w planie. Najczęstsze miganie to kropka + przerwa = 2 jednostki,
+         * czyli przy 150 ms aż 3,3 błysku na sekundę. WCAG 2.3.1 (poziom A) pozwala najwyżej na 3,
+         * bo szybsze miganie może wywołać napad padaczki. Przy 170 ms wychodzi ok. 2,9 (pilnuje tego FlashRateTest).
+         */
+        const val FastestUnitMs = 170
         const val DefaultUnitMs = 250
 
         /**
          * Pozycja suwaka dla danej szybkości.
          *
          * Suwak ma iść od "Wolno" (lewo) do "Szybko" (prawo), a szybciej = MNIEJ milisekund.
-         * Dlatego liczbę odbijamy lustrzanie: 400 ms -> 150 (lewy koniec), 150 ms -> 400 (prawy koniec).
-         * Suwak dostaje zakres 150..400, więc to po prostu (400 + 150) - unitMs.
+         * Dlatego liczbę odbijamy lustrzanie: 400 ms -> 170 (lewy koniec), 170 ms -> 400 (prawy koniec).
+         * Suwak dostaje zakres 170..400, więc to po prostu (400 + 170) - unitMs.
          */
         fun sliderPosition(unitMs: Int): Float = (SlowestUnitMs + FastestUnitMs - unitMs).toFloat()
 

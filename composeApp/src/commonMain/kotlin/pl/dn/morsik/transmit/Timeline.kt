@@ -5,7 +5,7 @@ import pl.dn.morsik.ui.LetterUi
 
 // Oś czasu sygnałów (zadanie 6). Czysta logika, bez Androida i bez czasu rzeczywistego:
 // zamienia litery na listę kroków "włącz na X jednostek" / "przerwa X jednostek".
-// Jednostka to najkrótszy odstęp (długość kropki); ile to milisekund, ustala suwak (150-400 ms).
+// Jednostka to najkrótszy odstęp (długość kropki); ile to milisekund, ustala suwak (170-400 ms).
 
 /**
  * Jeden krok nadawania: sygnał włączony ([on] = true) albo przerwa, na [units] jednostek.
