@@ -1,26 +1,43 @@
 package pl.dn.morsik.morse
 
+// Ten plik to czysta logika: zero Androida, zero Compose. Dzięki temu da się go
+// przetestować zwykłymi testami jednostkowymi na komputerze (MorseTest.kt).
+
 /**
  * Jeden znak wiadomości razem z kodem Morse'a.
  *
  * [code] to ciąg kropek i kresek, np. `".-"` dla A, albo `null`, gdy znaku nie ma w alfabecie
- * (taki znak pokazujemy w podglądzie, ale nie nadajemy).
+ * (np. `#` albo emoji - takich znaków nie nadajemy).
+ *
+ * `data class` = Kotlin sam generuje equals(), toString() i copy(), więc dwa obiekty
+ * z tymi samymi polami są sobie równe (przydaje się w testach: assertEquals).
  */
 data class MorseLetter(val text: String, val code: String?) {
+    /** `true`, gdy znak jest w alfabecie. `get() = ...` liczy wartość przy każdym odczycie. */
     val isKnown: Boolean get() = code != null
 }
 
-/** Słowo wiadomości, czyli znaki między białymi znakami. */
+/** Słowo wiadomości, czyli znaki między spacjami. */
 data class MorseWord(val letters: List<MorseLetter>) {
     /** `true`, gdy w słowie jest co nadać (przynajmniej jeden znak ma kod). */
     val isTransmittable: Boolean get() = letters.any { it.isKnown }
 }
 
+/**
+ * `object` = jedna jedyna instancja na całą aplikację (singleton).
+ * Wywołujemy po prostu `Morse.encode("SOS")`, bez tworzenia obiektu.
+ */
 object Morse {
+    // const val = stała znana już podczas kompilacji.
     const val DOT = '.'
     const val DASH = '-'
 
-    /** Alfabet w kolejności do wyświetlenia: litery, polskie litery, cyfry, interpunkcja. */
+    /**
+     * Alfabet Morse'a: znak -> kod.
+     *
+     * `linkedMapOf` pamięta kolejność dodawania, więc ekran Pomocy wyświetli znaki w tej kolejności:
+     * litery, polskie litery, cyfry, interpunkcja. `'A' to ".-"` tworzy parę (klucz, wartość).
+     */
     val alphabet: Map<Char, String> = linkedMapOf(
         'A' to ".-",
         'B' to "-...",
@@ -49,6 +66,7 @@ object Morse {
         'Y' to "-.--",
         'Z' to "--..",
 
+        // Polskie litery (polski standard alfabetu Morse'a).
         'Ą' to ".-.-",
         'Ć' to "-.-..",
         'Ę' to "..-..",
@@ -74,7 +92,7 @@ object Morse {
         ',' to "--..--",
         '?' to "..--..",
         '!' to "-.-.--",
-        '\'' to ".----.",
+        '\'' to ".----.", // apostrof trzeba poprzedzić \, bo inaczej zamknąłby literał znakowy
         '"' to ".-..-.",
         '/' to "-..-.",
         '(' to "-.--.",
@@ -90,55 +108,46 @@ object Morse {
         '@' to ".--.-.",
     )
 
-    /** Kod znaku bez względu na wielkość liter albo `null`, gdy znaku nie ma w alfabecie. */
+    /**
+     * Kod jednego znaku albo `null`, gdy znaku nie ma w alfabecie.
+     * Alfabet ma tylko wielkie litery, więc najpierw zamieniamy np. 'ż' na 'Ż'.
+     */
     fun codeOf(char: Char): String? = alphabet[char.uppercaseChar()]
 
     /**
-     * Dzieli tekst na słowa i znaki z kodem Morse'a.
+     * Dzieli tekst na słowa, a słowa na znaki z kodem Morse'a.
      *
-     * Słowa rozdziela dowolny ciąg białych znaków (spacje, tabulatory, nowe linie).
-     * Znaki spoza alfabetu zostają w wyniku z `code == null`, a emoji zapisane jako para
-     * surogatów to jeden znak, nie dwa.
+     * Przykład: `"Ala ma"` -> `[ [A, l, a], [m, a] ]` (każdy znak z kodem).
+     *
+     * Słowa rozdziela dowolny ciąg białych znaków (spacje, tabulatory, nowe linie),
+     * więc `"SOS   SOS"` to nadal dwa słowa. Znaki spoza alfabetu zostają w wyniku z `code == null`.
      */
-    fun encode(text: String): List<MorseWord> {
-        val words = mutableListOf<MorseWord>()
-        var letters = mutableListOf<MorseLetter>()
-        var i = 0
-        while (i < text.length) {
-            val char = text[i]
-            when {
-                char.isWhitespace() -> {
-                    if (letters.isNotEmpty()) {
-                        words += MorseWord(letters)
-                        letters = mutableListOf()
-                    }
-                    i += 1
-                }
-                char.isHighSurrogate() && i + 1 < text.length && text[i + 1].isLowSurrogate() -> {
-                    letters += MorseLetter(text.substring(i, i + 2), code = null)
-                    i += 2
-                }
-                else -> {
-                    letters += MorseLetter(char.toString(), codeOf(char))
-                    i += 1
-                }
+    fun encode(text: String): List<MorseWord> =
+        text.split(WHITESPACE)                // "  ala  ma " -> ["", "ala", "ma", ""]
+            .filter { it.isNotEmpty() }       // usuwamy puste kawałki z początku i końca -> ["ala", "ma"]
+            .map { word ->                    // każde słowo...
+                MorseWord(
+                    word.map { char ->        // ...każdy jego znak zamieniamy na MorseLetter
+                        MorseLetter(text = char.toString(), code = codeOf(char))
+                    },
+                )
             }
-        }
-        if (letters.isNotEmpty()) words += MorseWord(letters)
-        return words
-    }
 
     /**
-     * Zapis tekstu kropkami i kreskami: znaki rozdziela spacja, słowa ` / `.
+     * Zapis tekstu kropkami i kreskami w jednej linii: znaki rozdziela spacja, słowa ` / `.
      * Znaki spoza alfabetu są pomijane, np. `"SOS"` daje `"... --- ..."`.
      */
     fun encodeToString(text: String): String =
         encode(text)
-            .filter { it.isTransmittable }
-            .joinToString(WORD_SEPARATOR) { word ->
-                word.letters.mapNotNull { it.code }.joinToString(LETTER_SEPARATOR)
+            .filter { it.isTransmittable }                              // słowa typu "###" nic nie nadają
+            .joinToString(WORD_SEPARATOR) { word ->                     // słowa łączymy " / "
+                word.letters.mapNotNull { it.code }                     // bierzemy tylko znane kody
+                    .joinToString(LETTER_SEPARATOR)                     // kody liter łączymy spacją
             }
 
     private const val LETTER_SEPARATOR = " "
     private const val WORD_SEPARATOR = " / "
+
+    /** Wyrażenie regularne: `\s` = biały znak, `+` = jeden lub więcej pod rząd. */
+    private val WHITESPACE = Regex("\\s+")
 }
