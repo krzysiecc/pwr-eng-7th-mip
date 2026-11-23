@@ -119,28 +119,41 @@ data class MainUiState(
 
     // companion object = rzeczy wspólne dla całej klasy, używane jako MainUiState.Nazwa.
     companion object {
-        /** Długość jednej jednostki (kropki) w milisekundach: 400 = wolno, 170 = szybko. */
-        const val SlowestUnitMs = 400
+        /** Długość jednej jednostki (kropki) w milisekundach: 350 = wolno (lewy koniec suwaka). */
+        const val SlowestUnitMs = 350
+
+        /** Najszybsze ustawienie suwaka (prawy koniec): "bardzo szybko". */
+        const val FastestUnitMs = 50
 
         /**
-         * Najszybciej 170 ms, a nie 150 ms jak w planie. Najczęstsze miganie to kropka + przerwa = 2 jednostki,
+         * Najszybsza BEZPIECZNA jednostka. Najczęstsze miganie to kropka + przerwa = 2 jednostki,
          * czyli przy 150 ms aż 3,3 błysku na sekundę. WCAG 2.3.1 (poziom A) pozwala najwyżej na 3,
          * bo szybsze miganie może wywołać napad padaczki. Przy 170 ms wychodzi ok. 2,9 (pilnuje tego FlashRateTest).
+         * Szybciej (od 170 do [FastestUnitMs]) to "szara strefa" suwaka: działa, ale jest ostrzeżenie.
          */
-        const val FastestUnitMs = 170
+        const val SafeUnitMs = 170
         const val DefaultUnitMs = 250
+
+        /** `true`, gdy szybkość jest w szarej strefie suwaka, czyli miga częściej niż 3 razy na sekundę. */
+        fun isBeyondSafeSpeed(unitMs: Int): Boolean = unitMs < SafeUnitMs
 
         /**
          * Pozycja suwaka dla danej szybkości.
          *
-         * Suwak ma iść od "Wolno" (lewo) do "Szybko" (prawo), a szybciej = MNIEJ milisekund.
-         * Dlatego liczbę odbijamy lustrzanie: 400 ms -> 170 (lewy koniec), 170 ms -> 400 (prawy koniec).
-         * Suwak dostaje zakres 170..400, więc to po prostu (400 + 170) - unitMs.
+         * Suwak ma iść od "Wolno" (lewo) do "Bardzo szybko" (prawo), a szybciej = MNIEJ milisekund.
+         * Dlatego liczbę odbijamy lustrzanie: 350 ms -> 50 (lewy koniec), 50 ms -> 350 (prawy koniec).
+         * Suwak dostaje zakres 50..350, więc to po prostu (350 + 50) - unitMs.
          */
         fun sliderPosition(unitMs: Int): Float = (SlowestUnitMs + FastestUnitMs - unitMs).toFloat()
 
         /** Odwrotność [sliderPosition]: z pozycji suwaka wraca do milisekund (zaokrąglone do pełnych). */
         fun unitMsAt(sliderPosition: Float): Int = SlowestUnitMs + FastestUnitMs - sliderPosition.roundToInt()
+
+        /**
+         * Gdzie na suwaku (0 = lewy koniec, 1 = prawy) zaczyna się szara strefa.
+         * Dla 170 ms to 60%: (350 - 170) / (350 - 50).
+         */
+        val SafeZoneEnd = (SlowestUnitMs - SafeUnitMs).toFloat() / (SlowestUnitMs - FastestUnitMs)
 
         /** Stan "na sztywno" jak na makiecie (nadawanie SOS, druga kreska litery O). Używany w podglądach. */
         val Demo = MainUiState(

@@ -43,4 +43,11 @@ class HelpUiStateTest {
         val punctuation = alphabetGroups().first { it.title == Strings.GroupPunctuation }.characters
         for (letter in punctuation) assertNotEquals(letter.symbol, Strings.characterName(letter.symbol))
     }
+
+    @Test
+    fun boldMarkupBoldsOnlyTextBetweenStars() {
+        val text = boldMarkup("Wpisz **wiadomość** i dotknij **Nadaj**.")
+        assertEquals("Wpisz wiadomość i dotknij Nadaj.", text.text)
+        assertEquals(listOf("wiadomość", "Nadaj"), text.spanStyles.map { text.text.substring(it.start, it.end) })
+    }
 }

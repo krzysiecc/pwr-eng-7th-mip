@@ -99,7 +99,7 @@ class MainUiStateTest {
 
     @Test
     fun sliderIsMirrored() {
-        // Wolno (400 ms) = lewy koniec suwaka (najmniejsza wartość), szybko (170 ms) = prawy koniec.
+        // Wolno (350 ms) = lewy koniec suwaka (najmniejsza wartość), bardzo szybko (50 ms) = prawy koniec.
         assertEquals(MainUiState.FastestUnitMs.toFloat(), MainUiState.sliderPosition(MainUiState.SlowestUnitMs))
         assertEquals(MainUiState.SlowestUnitMs.toFloat(), MainUiState.sliderPosition(MainUiState.FastestUnitMs))
     }
@@ -113,8 +113,17 @@ class MainUiStateTest {
 
     @Test
     fun sliderPositionIsRoundedToWholeMilliseconds() {
-        assertEquals(250, MainUiState.unitMsAt(319.6f)) // 570 - 320
-        assertEquals(251, MainUiState.unitMsAt(319.4f)) // 570 - 319
+        assertEquals(250, MainUiState.unitMsAt(150.4f)) // 400 - 150
+        assertEquals(249, MainUiState.unitMsAt(150.6f)) // 400 - 151
+    }
+
+    @Test
+    fun greyZoneStartsBelowSafeSpeed() {
+        assertEquals(false, MainUiState.isBeyondSafeSpeed(MainUiState.SafeUnitMs))
+        assertEquals(true, MainUiState.isBeyondSafeSpeed(MainUiState.SafeUnitMs - 1))
+        assertEquals(true, MainUiState.isBeyondSafeSpeed(MainUiState.FastestUnitMs))
+        // Granica na suwaku: 60% długości od lewej (wolno), czyli (350 - 170) / (350 - 50).
+        assertEquals(0.6f, MainUiState.SafeZoneEnd, 0.001f)
     }
 
     // --- wyświetlanie kodu ---

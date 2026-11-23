@@ -22,45 +22,46 @@ import androidx.compose.ui.unit.sp
 // Sprawdza to automatycznie test ThemeContrastTest, więc po zmianie koloru wystarczy uruchomić testy.
 // ---------------------------------------------------------------------------------------------
 
-/** Jasna zieleń z makiety. Tylko jako TŁO pod ciemnym tekstem (kontrast z MorsikInk ok. 8.7 : 1). */
-val MorsikGreen = Color(0xFF76C84A)
+/**
+ * Zieleń przycisków, włączonych kanałów, aktywnych kafelków, suwaka i obwódki koła. Tekst na niej jest BIAŁY
+ * (kontrast ok. 5.2 : 1), a sama na białym i szarym tle ma ponad 3 : 1.
+ */
+val MorsikGreen = Color(0xFF2E7D1C)
 
 /**
- * Ciemniejsza zieleń do elementów stojących bezpośrednio na białym tle (suwak, obwódka koła, kropka statusu).
- * Jasna [MorsikGreen] ma na białym tylko ok. 2 : 1 i byłaby słabo widoczna.
+ * Wyszarzała zieleń: strefa suwaka szybszej niż bezpieczne 170 ms (patrz MainUiState.SafeUnitMs).
+ * Ma co najmniej 3 : 1 na białym, więc suwak w tej strefie nadal widać.
  */
-val MorsikGreenDark = Color(0xFF3E8E1E)
+val MorsikGreenMuted = Color(0xFF7A9471)
 
-/** Różowe tło pól i kafelków. */
-val MorsikPink = Color(0xFFFDE2DE)
+/** Jasnoszary kolor pól tekstowych, kafelków, menu i wyłączonych przycisków (zamiast dawnego różu). */
+val MorsikGrey = Color(0xFFD9D5D3)
 
 /**
- * Czerwień przycisku Stop i plakietki w nagłówku.
- * Jest trochę ciemniejsza niż na makiecie (było 0xFFFF2A0F), bo biały napis na tamtej czerwieni
- * miał kontrast tylko ok. 3.8 : 1. Ta ma ok. 5.2 : 1.
+ * Czerwień przycisku Stop (tylko gdy trwa nadawanie) i plakietki w nagłówku.
+ * Biały napis ma na niej ok. 6 : 1.
  */
-val MorsikRed = Color(0xFFD62000)
+val MorsikRed = Color(0xFFC81E00)
 
 /** Prawie czarny kolor głównego tekstu. */
-val MorsikInk = Color(0xFF1B1411)
+val MorsikInk = Color(0xFF14100E)
 
 /**
- * Przygaszony tekst: etykiety sekcji, wyłączone przełączniki.
- * Wcześniej był to MorsikInk z przezroczystością 50-60%, co na różowym tle dawało za mały kontrast.
- * Pełny, szarobrązowy kolor ma ok. 7 : 1 na białym i ok. 6 : 1 na różowym.
+ * Przygaszony tekst: etykiety sekcji, wyłączone przyciski. Pełny, ciemny szarobrązowy kolor
+ * (ok. 9 : 1 na białym i ok. 6 : 1 na szarym), a nie przezroczystość, która psuła kontrast.
  */
-val MorsikInkMuted = Color(0xFF5C5450)
+val MorsikInkMuted = Color(0xFF4A4340)
 
 // Zestaw kolorów dla komponentów Material 3 (Button, Slider, TextField...).
 // "onX" oznacza kolor tekstu/ikon, które leżą NA kolorze X.
 private val MorsikColors = lightColorScheme(
-    primary = MorsikGreenDark,
+    primary = MorsikGreen,
     onPrimary = Color.White,
     secondary = MorsikInk,
     onSecondary = Color.White,
     surface = Color.White,
     onSurface = MorsikInk,
-    surfaceVariant = MorsikPink,
+    surfaceVariant = MorsikGrey,
     onSurfaceVariant = MorsikInk,
     background = Color.White,
     onBackground = MorsikInk,
@@ -73,9 +74,12 @@ private val MorsikColors = lightColorScheme(
 // sp = jednostka czcionki, która rośnie razem z ustawieniem "rozmiar czcionki" w telefonie.
 private val MorsikTypography = Typography(
     headlineMedium = TextStyle(fontSize = 30.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.5).sp),
+    headlineSmall = TextStyle(fontSize = 24.sp, fontWeight = FontWeight.SemiBold),
     titleLarge = TextStyle(fontSize = 26.sp, fontWeight = FontWeight.Bold),
     titleMedium = TextStyle(fontSize = 18.sp, fontWeight = FontWeight.SemiBold),
     bodyLarge = TextStyle(fontSize = 17.sp, fontWeight = FontWeight.Medium),
+    // Zwykły tekst ekranów z treścią (Pomoc, deklaracja, O aplikacji): mały i nie pogrubiony.
+    bodyMedium = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Normal, lineHeight = 22.sp),
     labelLarge = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.SemiBold),
     labelMedium = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
     // Najmniejszy tekst w aplikacji. Było 10 sp - za mało do wygodnego czytania, teraz 12 sp.

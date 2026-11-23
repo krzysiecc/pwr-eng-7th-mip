@@ -15,7 +15,7 @@ android {
         minSdk = libs.versions.android.minSdk.get().toInt() // 26 = najstarszy obsługiwany Android 8.0
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1 // numer wersji dla systemu (rośnie przy każdym wydaniu)
-        versionName = "1.0.0" // numer wersji widoczny dla użytkownika
+        versionName = "0.8a" // numer wersji widoczny dla użytkownika
     }
 }
 

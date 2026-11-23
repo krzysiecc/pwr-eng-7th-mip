@@ -15,12 +15,27 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridScope
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -47,6 +62,10 @@ fun HelpScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // Obie zakładki startują zwinięte. rememberSaveable = stan przetrwa obrót ekranu.
+    var howToExpanded by rememberSaveable { mutableStateOf(false) }
+    var alphabetExpanded by rememberSaveable { mutableStateOf(false) }
+
     Column(modifier = modifier.fillMaxSize().safeDrawingPadding().semantics { paneTitle = Strings.Help }) {
         ScreenTopBar(title = Strings.Help, onBack = onBack, modifier = Modifier.padding(horizontal = 16.dp))
 
@@ -59,23 +78,37 @@ fun HelpScreen(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            fullWidth { SectionTitle(Strings.HowToTitle) }
-            Strings.HowToSteps.forEachIndexed { index, step ->
-                fullWidth { Text("${index + 1}. $step", style = MaterialTheme.typography.bodyLarge, color = MorsikInk) }
+            fullWidth { ExpandableTitle(Strings.HowToTitle, howToExpanded) { howToExpanded = !howToExpanded } }
+            if (howToExpanded) {
+                Strings.HowToSteps.forEachIndexed { index, step ->
+                    fullWidth {
+                        Text(
+                            // Numer też jest pogrubiony, żeby punkty łatwo było odróżnić.
+                            text = buildAnnotatedString {
+                                withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append("${index + 1}. ") }
+                                append(boldMarkup(step))
+                            },
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MorsikInk,
+                        )
+                    }
+                }
             }
 
-            fullWidth { SectionTitle(Strings.AlphabetTitle, Modifier.padding(top = 12.dp)) }
-            fullWidth { Text(Strings.AlphabetHint, style = MaterialTheme.typography.bodyLarge, color = MorsikInk) }
+            fullWidth { ExpandableTitle(Strings.AlphabetTitle, alphabetExpanded, Modifier.padding(top = 4.dp)) { alphabetExpanded = !alphabetExpanded } }
+            if (alphabetExpanded) {
+                fullWidth { Text(boldMarkup(Strings.AlphabetHint), style = MaterialTheme.typography.bodyMedium, color = MorsikInk) }
 
-            for (group in state.groups) {
-                fullWidth { SectionLabel(group.title.uppercase(), Modifier.padding(top = 8.dp)) }
-                // key = symbol: Compose rozpoznaje kafelek po znaku, a nie po pozycji na liście.
-                items(group.characters, key = { it.symbol }) { letter ->
-                    CharacterTile(
-                        letter = letter,
-                        active = letter.symbol == state.activeSymbol,
-                        onClick = { onSend(letter) },
-                    )
+                for (group in state.groups) {
+                    fullWidth { SectionLabel(group.title.uppercase(), Modifier.padding(top = 8.dp)) }
+                    // key = symbol: Compose rozpoznaje kafelek po znaku, a nie po pozycji na liście.
+                    items(group.characters, key = { it.symbol }) { letter ->
+                        CharacterTile(
+                            letter = letter,
+                            active = letter.symbol == state.activeSymbol,
+                            onClick = { onSend(letter) },
+                        )
+                    }
                 }
             }
         }
@@ -91,15 +124,54 @@ private fun LazyGridScope.fullWidth(content: @Composable () -> Unit) {
     item(span = { GridItemSpan(maxLineSpan) }) { content() }
 }
 
-/** Nagłówek sekcji ekranu Pomocy, np. "Jak korzystać". */
+/**
+ * Zamienia tekst z `**pogrubieniem**` na [AnnotatedString]: słowa między parami ** są pogrubione,
+ * reszta ma zwykłą wagę. Czytnik ekranu czyta tekst bez gwiazdek.
+ */
+internal fun boldMarkup(text: String): AnnotatedString = buildAnnotatedString {
+    // split("**"): co drugi kawałek (indeksy nieparzyste) leży między gwiazdkami.
+    text.split("**").forEachIndexed { index, part ->
+        if (index % 2 == 1) withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(part) } else append(part)
+    }
+}
+
+/**
+ * Nagłówek rozwijanej zakładki: tytuł i strzałka. Cały pasek jest przyciskiem;
+ * TalkBack czyta "Jak korzystać, zwinięte, nagłówek, przycisk" i "dwukrotnie dotknij, aby rozwinąć".
+ */
 @Composable
-private fun SectionTitle(text: String, modifier: Modifier = Modifier) {
-    Text(
-        text = text,
-        modifier = modifier.semantics { heading() },
-        style = MaterialTheme.typography.titleMedium,
-        color = MorsikInk,
-    )
+private fun ExpandableTitle(title: String, expanded: Boolean, modifier: Modifier = Modifier, onToggle: () -> Unit) {
+    val shape = MaterialTheme.shapes.medium
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .heightIn(min = 56.dp)
+            .clip(shape)
+            .background(MorsikGrey)
+            .clickable(
+                onClickLabel = if (expanded) Strings.Collapse else Strings.Expand,
+                role = Role.Button,
+                onClick = onToggle,
+            )
+            .semantics {
+                heading()
+                stateDescription = if (expanded) Strings.Expanded else Strings.Collapsed
+            }
+            .padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = title,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.titleMedium,
+            color = MorsikInk,
+        )
+        Icon(
+            imageVector = if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+            contentDescription = null, // stan mówi stateDescription
+            tint = MorsikInk,
+        )
+    }
 }
 
 /**
@@ -109,11 +181,12 @@ private fun SectionTitle(text: String, modifier: Modifier = Modifier) {
 @Composable
 private fun CharacterTile(letter: LetterUi, active: Boolean, onClick: () -> Unit) {
     val shape = MaterialTheme.shapes.medium
+    val textColor = if (active) Color.White else MorsikInk // biały na zielonym
     Column(
         modifier = Modifier
             .heightIn(min = 72.dp)
             .clip(shape)
-            .background(if (active) MorsikGreen else MorsikPink)
+            .background(if (active) MorsikGreen else MorsikGrey)
             .then(if (active) Modifier.border(3.dp, MorsikInk, shape) else Modifier)
             // onClickLabel: TalkBack powie "dwukrotnie dotknij, aby nadać".
             .clickable(onClickLabel = Strings.SendAction, role = Role.Button, onClick = onClick)
@@ -131,14 +204,14 @@ private fun CharacterTile(letter: LetterUi, active: Boolean, onClick: () -> Unit
             text = letter.symbol,
             modifier = Modifier.clearAndSetSemantics {},
             style = MaterialTheme.typography.titleLarge,
-            color = MorsikInk,
+            color = textColor,
         )
         Text(
             text = displayCode(letter.code),
             modifier = Modifier.clearAndSetSemantics {},
             fontSize = 14.sp,
             fontWeight = FontWeight.Bold,
-            color = MorsikInk,
+            color = textColor,
             textAlign = TextAlign.Center, // długie kody (np. $) przy dużej czcionce zawijają się na środku
         )
     }

@@ -29,6 +29,13 @@ object Strings {
     const val SpeedLabel = "SZYBKOŚĆ"
     const val SpeedSlow = "Wolno"
     const val SpeedFast = "Szybko"
+    const val SpeedVeryFast = "Bardzo szybko"
+    const val SpeedWarning = "szybkie miganie"
+    const val Preview = "KOD MORSE'A"
+    const val Expand = "rozwiń"
+    const val Collapse = "zwiń"
+    const val Expanded = "rozwinięte"
+    const val Collapsed = "zwinięte"
 
     const val Start = "Nadaj"
     const val Stop = "Stop"
@@ -40,6 +47,9 @@ object Strings {
     /** Opis szybkości obok suwaka, np. "250 ms / jednostka". `$unitMs` wstawia wartość zmiennej do tekstu. */
     fun speedValue(unitMs: Int) = "$unitMs ms / jednostka"
 
+    /** Jak [speedValue], ale w szarej strefie suwaka z ostrzeżeniem, żeby nie było go widać tylko po kolorze. */
+    fun speedValueWithWarning(unitMs: Int) = "$unitMs ms / jednostka · $SpeedWarning"
+
     // ---- Menu (pozycje są też tytułami otwieranych ekranów) ----
 
     const val Help = "Pomoc"
@@ -48,16 +58,17 @@ object Strings {
 
     // ---- Ekran Pomocy ----
 
+    // Pogrubienie w tekstach pomocy: słowa między ** są pogrubione (patrz boldMarkup w HelpScreen.kt).
     const val HowToTitle = "Jak korzystać"
     val HowToSteps = listOf(
-        "Wpisz wiadomość albo dotknij mikrofonu i ją podyktuj. Pod polem widać każdą literę z jej kodem.",
-        "Wybierz kanały: latarka, wibracja, dźwięk. Można włączyć kilka naraz.",
-        "Ustaw szybkość suwakiem i dotknij Nadaj (albo Wyślij na klawiaturze).",
-        "Stop od razu przerywa nadawanie. Nadawanie zatrzymuje się też, gdy wyjdziesz z aplikacji.",
+        "**Wpisz wiadomość** albo dotknij **mikrofonu** i ją podyktuj. Pod polem możesz rozwinąć **kod** każdej litery.",
+        "Wybierz **kanały**: latarka, wibracja, dźwięk. Można włączyć **kilka naraz**.",
+        "Ustaw **szybkość** suwakiem i dotknij **Nadaj** (albo Wyślij na klawiaturze).",
+        "**Stop** od razu przerywa nadawanie. Nadawanie zatrzymuje się też, gdy **wyjdziesz z aplikacji**.",
     )
 
     const val AlphabetTitle = "Alfabet Morse'a"
-    const val AlphabetHint = "Dotknij znaku, aby go nadać. Używane są kanały i szybkość z ekranu głównego."
+    const val AlphabetHint = "Dotknij znaku, aby go **nadać**. Używane są **kanały i szybkość** z ekranu głównego."
     const val GroupLetters = "Litery"
     const val GroupPolish = "Polskie litery"
     const val GroupDigits = "Cyfry"
@@ -132,7 +143,8 @@ object Strings {
                 "Tekst rośnie razem z ustawieniem rozmiaru czcionki w telefonie, a ekrany można przewijać.",
                 "Aplikacja działa w orientacji pionowej i poziomej.",
                 "Pola dotyku mają co najmniej 48 na 48 dp.",
-                "Nic nie miga częściej niż 3 razy na sekundę, dlatego najszybsza szybkość to 170 ms na jednostkę.",
+                "Do 170 ms na jednostkę nic nie miga częściej niż 3 razy na sekundę. Szybszą, szarą strefę " +
+                    "suwaka opisujemy w ograniczeniach.",
                 "Nadawanie można w każdej chwili przerwać przyciskiem Stop. Zatrzymuje się też samo, " +
                     "gdy aplikacja przechodzi w tło.",
                 "Każdy sygnał nadawany latarką, wibracją lub dźwiękiem jest jednocześnie pokazany na ekranie.",
@@ -145,28 +157,14 @@ object Strings {
                 "Dyktowanie korzysta z systemowej usługi rozpoznawania mowy. Dla języka polskiego może " +
                     "wymagać internetu, a na niektórych telefonach jest niedostępne. Wiadomość zawsze " +
                     "można wpisać z klawiatury.",
+                "Szara strefa suwaka (szybciej niż 170 ms na jednostkę) pozwala na miganie częściej niż " +
+                    "3 razy na sekundę, a to nie spełnia kryterium WCAG 2.3.1 i może być groźne dla osób " +
+                    "z padaczką światłoczułą. Strefa jest oznaczona kolorem, podpisem i ostrzeżeniem " +
+                    "w tekście obok suwaka.",
                 "Aplikacja nie ma trybu ciemnego.",
                 "Aplikacji nie testowały jeszcze osoby z niepełnosprawnościami.",
             ),
             bullets = true,
-        ),
-        InfoSection(
-            title = "Informacje zwrotne i kontakt",
-            paragraphs = listOf(
-                "Problemy z dostępnością prosimy zgłaszać jako zgłoszenie (Issue) w repozytorium projektu: " +
-                    "$ProjectUrl. Tą samą drogą można poprosić o informację o niedostępnym elemencie " +
-                    "albo o jego udostępnienie.",
-            ),
-        ),
-        InfoSection(
-            title = "Procedura wnioskowo-skargowa",
-            paragraphs = listOf(
-                "Każdy ma prawo zażądać zapewnienia dostępności cyfrowej aplikacji lub jej elementu. " +
-                    "Żądanie powinno zawierać dane osoby zgłaszającej, wskazanie, o który element chodzi, " +
-                    "oraz sposób kontaktu. Odpowiadamy niezwłocznie, nie później niż w ciągu 7 dni.",
-                "W przypadku podmiotów publicznych po odmowie można złożyć skargę, a następnie wniosek do " +
-                    "Rzecznika Praw Obywatelskich (www.rpo.gov.pl).",
-            ),
         ),
     )
 

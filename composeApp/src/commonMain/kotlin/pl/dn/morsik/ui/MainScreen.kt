@@ -1,6 +1,32 @@
 package pl.dn.morsik.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.SliderState
+import androidx.compose.ui.BiasAlignment
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -52,6 +78,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -89,7 +116,7 @@ import androidx.compose.ui.unit.sp
 // =============================================================================================
 
 /**
- * Cały ekran główny: przewijana część z treścią i przycisk Stop przyklejony na dole.
+ * Cały ekran główny: przewijana część z treścią i przyciski Nadaj i Stop przyklejone na dole.
  *
  * @param state wszystko, co ma być widać na ekranie
  * @param onMessageChange wołane przy każdej zmianie tekstu w polu wiadomości
@@ -130,15 +157,16 @@ fun MainScreen(
                 onStart = onStart,
                 readOnly = state.isTransmitting, // w trakcie nadawania nie zmieniamy tekstu
             )
-            LetterPreview(letters = state.letters, activeLetter = state.transmission?.activeLetter)
+            CodePreview(letters = state.letters, activeLetter = state.transmission?.activeLetter)
             StatusLine(state = state)
             SignalIndicator(signal = state.activeSignal, signalOn = state.transmission?.signalOn == true)
             ChannelToggles(channels = state.channels, onChange = onChannelsChange)
             SpeedControl(unitMs = state.unitMs, onUnitMsChange = onUnitMsChange)
         }
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            StartButton(enabled = state.canStart, onClick = onStart)
-            StopButton(enabled = state.isTransmitting, onClick = onStop)
+        // Nadaj i Stop w jednej linii (po równo), dzięki czemu cały ekran mieści się bez przewijania.
+        Row(modifier = Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            StartButton(enabled = state.canStart, onClick = onStart, modifier = Modifier.weight(1f))
+            StopButton(enabled = state.isTransmitting, onClick = onStop, modifier = Modifier.weight(1f))
         }
     }
 }
@@ -194,7 +222,7 @@ private fun HeaderMenu(onOpen: (Screen) -> Unit) {
             onClick = { expanded = true },
             modifier = Modifier.size(48.dp),
             shape = MaterialTheme.shapes.medium,
-            colors = IconButtonDefaults.filledIconButtonColors(containerColor = MorsikPink, contentColor = MorsikInk),
+            colors = IconButtonDefaults.filledIconButtonColors(containerColor = MorsikGrey, contentColor = MorsikInk),
         ) {
             // contentDescription = co powie TalkBack o tym przycisku.
             Icon(Icons.Filled.Menu, contentDescription = Strings.Menu)
@@ -202,7 +230,9 @@ private fun HeaderMenu(onOpen: (Screen) -> Unit) {
         DropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false }, // dotknięcie obok albo Wstecz zamyka menu
-            containerColor = MorsikPink, // ciemny tekst na różowym: kontrast sprawdzony w ThemeContrastTest
+            offset = DpOffset(0.dp, 15.dp), // 15 dp luzu pod przyciskiem, żeby menu go nie dotykało
+            shape = RoundedCornerShape(4.dp), // prawie proste rogi
+            containerColor = MorsikGrey, // ciemny tekst na szarym: kontrast sprawdzony w ThemeContrastTest
         ) {
             MenuItem(Strings.Help, Icons.AutoMirrored.Filled.HelpOutline) { expanded = false; onOpen(Screen.Help) }
             MenuItem(Strings.Accessibility, Icons.Filled.Accessibility) { expanded = false; onOpen(Screen.Accessibility) }
@@ -218,6 +248,8 @@ private fun MenuItem(label: String, icon: ImageVector, onClick: () -> Unit) {
         text = { Text(label, style = MaterialTheme.typography.bodyLarge, color = MorsikInk) },
         onClick = onClick,
         leadingIcon = { Icon(icon, contentDescription = null, tint = MorsikInk) },
+        // Większe wcięcia: pozycje są wyższe i szersze niż domyślnie.
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 14.dp),
     )
 }
 
@@ -261,8 +293,10 @@ private fun MessageField(
                 keyboardActions = KeyboardActions(onSend = { onStart() }),
                 shape = MaterialTheme.shapes.medium,
                 colors = TextFieldDefaults.colors(
-                    focusedContainerColor = MorsikPink,
-                    unfocusedContainerColor = MorsikPink,
+                    focusedContainerColor = MorsikGrey,
+                    unfocusedContainerColor = MorsikGrey,
+                    focusedTextColor = MorsikInk,
+                    unfocusedTextColor = MorsikInk,
                     focusedIndicatorColor = Color.Transparent, // bez kreski pod polem
                     unfocusedIndicatorColor = Color.Transparent,
                     cursorColor = MorsikInk,
@@ -276,6 +310,40 @@ private fun MessageField(
             ) {
                 Icon(Icons.Filled.Mic, contentDescription = Strings.Dictate)
             }
+        }
+    }
+}
+
+/**
+ * Zwijana belka "KOD MORSE'A": domyślnie zwinięta, po dotknięciu pokazuje [LetterPreview].
+ * Dzięki temu kafelki z kodem nie zaśmiecają ekranu, a ciekawy użytkownik nadal je ma.
+ */
+@Composable
+private fun CodePreview(letters: List<LetterUi>, activeLetter: Int?) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    Column {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 48.dp) // pole dotyku co najmniej 48 dp
+                .clip(MaterialTheme.shapes.medium)
+                .clickable(
+                    onClickLabel = if (expanded) Strings.Collapse else Strings.Expand,
+                    role = Role.Button,
+                    onClick = { expanded = !expanded },
+                )
+                .semantics { stateDescription = if (expanded) Strings.Expanded else Strings.Collapsed },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            SectionLabel(Strings.Preview, Modifier.weight(1f))
+            Icon(
+                imageVector = if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                contentDescription = null, // stan mówi stateDescription
+                tint = MorsikInkMuted,
+            )
+        }
+        AnimatedVisibility(visible = expanded) {
+            LetterPreview(letters = letters, activeLetter = activeLetter)
         }
     }
 }
@@ -306,20 +374,21 @@ private fun LetterPreview(letters: List<LetterUi>, activeLetter: Int?) {
                     // Minimalna szerokość zamiast stałej: kafelek rośnie, gdy kod jest długi
                     // (np. Ś = "· · · – · · ·" nie mieściło się w stałych 96 dp).
                     .widthIn(min = 72.dp)
-                    .background(if (active) MorsikGreen else MorsikPink, MaterialTheme.shapes.medium)
+                    .background(if (active) MorsikGreen else MorsikGrey, MaterialTheme.shapes.medium)
                     .padding(horizontal = 12.dp, vertical = 10.dp)
                     // Dla TalkBack cały kafelek to jeden element z opisem "O: kreska kreska kreska".
                     .clearAndSetSemantics { contentDescription = spokenLetter(letter.symbol, letter.code) },
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
-                Text(letter.symbol, style = MaterialTheme.typography.titleMedium, color = MorsikInk)
+                val textColor = if (active) Color.White else MorsikInk // biały na zielonym
+                Text(letter.symbol, style = MaterialTheme.typography.titleMedium, color = textColor)
                 Text(
                     text = displayCode(letter.code),
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                     letterSpacing = 1.sp,
-                    color = MorsikInk,
+                    color = textColor,
                     maxLines = 1,
                 )
             }
@@ -345,7 +414,7 @@ private fun StatusLine(state: MainUiState) {
     ) {
         if (transmission != null) {
             // Zielona kropka "na żywo" przed tekstem.
-            Box(Modifier.size(8.dp).background(MorsikGreenDark, CircleShape))
+            Box(Modifier.size(8.dp).background(MorsikGreen, CircleShape))
             Spacer(Modifier.width(6.dp))
         }
         Text(
@@ -366,21 +435,21 @@ private fun SignalIndicator(signal: Signal?, signalOn: Boolean) {
     Column(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Box(
             modifier = Modifier
-                .size(200.dp)
-                .background(MorsikPink, CircleShape)
-                .border(3.dp, MorsikGreenDark, CircleShape),
+                .size(150.dp)
+                .background(MorsikGrey, CircleShape)
+                .border(3.dp, MorsikGreen, CircleShape),
             contentAlignment = Alignment.Center, // zawartość na środku koła
         ) {
             // Wspólny wygląd znaku: zielony, pełny gdy sygnał trwa, blady w przerwie.
             val mark = Modifier.alpha(if (signalOn) 1f else 0.25f)
             // `when` = rozbudowany switch. Musi obsłużyć wszystkie przypadki, także null.
             when (signal) {
-                Signal.Dot -> Box(mark.size(48.dp).background(MorsikGreenDark, CircleShape))
-                Signal.Dash -> Box(mark.size(width = 120.dp, height = 36.dp).background(MorsikGreenDark, CircleShape))
+                Signal.Dot -> Box(mark.size(40.dp).background(MorsikGreen, CircleShape))
+                Signal.Dash -> Box(mark.size(width = 96.dp, height = 30.dp).background(MorsikGreen, CircleShape))
                 null -> Unit // nic nie rysujemy
             }
         }
@@ -390,17 +459,19 @@ private fun SignalIndicator(signal: Signal?, signalOn: Boolean) {
                 Signal.Dash -> Strings.SignalDash
                 null -> Strings.SignalIdle
             },
-            style = MaterialTheme.typography.titleLarge,
+            style = MaterialTheme.typography.titleMedium,
             color = MorsikInk,
             textAlign = TextAlign.Center,
         )
     }
 }
 
-/** Trzy przełączniki kanałów obok siebie, każdy tej samej szerokości. */
+/** Trzy przełączniki kanałów obok siebie, każdy tej samej szerokości i wysokości. */
 @Composable
 private fun ChannelToggles(channels: ChannelsUi, onChange: (ChannelsUi) -> Unit) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    // Szeroki odstęp (20 dp): w nim siedzą ptaszki włączonych kanałów. IntrinsicSize.Max = wiersz
+    // ma wysokość najwyższego przycisku, a fillMaxHeight() w ChannelToggle rozciąga pozostałe.
+    Row(modifier = Modifier.height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
         // weight(1f) dla każdego = dzielą szerokość po równo.
         // channels.copy(flashlight = it) = te same ustawienia, tylko latarka zmieniona na nową wartość.
         ChannelToggle(
@@ -428,8 +499,9 @@ private fun ChannelToggles(channels: ChannelsUi, onChange: (ChannelsUi) -> Unit)
 }
 
 /**
- * Jeden przełącznik kanału: ikona i podpis. Włączony = zielony z ptaszkiem, wyłączony = różowy.
- * Ptaszek jest po to, żeby stan był widoczny nie tylko kolorem (np. dla osób nierozróżniających kolorów).
+ * Jeden przełącznik kanału: ikona i podpis. Włączony = zielony z białym tekstem, wyłączony = szary.
+ * Ptaszek włączonego kanału siedzi na prawym górnym rogu, głównie w odstępie między przyciskami,
+ * więc nie przesuwa podpisu. Jest po to, żeby stan był widoczny nie tylko kolorem (WCAG 1.4.1).
  */
 @Composable
 private fun ChannelToggle(
@@ -439,34 +511,54 @@ private fun ChannelToggle(
     onChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val contentColor = if (selected) MorsikInk else MorsikInkMuted
-    Column(
-        modifier = modifier
-            .heightIn(min = 64.dp) // wszystkie trzy tej samej wysokości, także gdy jeden podpis się zawinie
-            .clip(MaterialTheme.shapes.medium) // przycina też efekt kliknięcia (ripple) do zaokrąglonych rogów
-            .background(if (selected) MorsikGreen else MorsikPink)
-            // toggleable = kliknięcie przełącza wartość; Role.Switch mówi TalkBackowi "przełącznik, włączony".
-            .toggleable(value = selected, role = Role.Switch, onValueChange = onChange)
-            .padding(horizontal = 4.dp, vertical = 10.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterVertically),
-    ) {
-        // Ikona jest ozdobą (contentDescription = null), bo podpis pod nią mówi to samo.
-        Icon(icon, contentDescription = null, tint = contentColor, modifier = Modifier.size(22.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            if (selected) {
-                Icon(Icons.Filled.Check, contentDescription = null, tint = contentColor, modifier = Modifier.size(14.dp))
-                Spacer(Modifier.width(2.dp))
-            }
+    val contentColor = if (selected) Color.White else MorsikInkMuted
+    // Box zewnętrzny NIE przycina zawartości, dzięki czemu ptaszek może wystawać poza przycisk.
+    Box(modifier = modifier) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight()
+                .heightIn(min = 64.dp) // wszystkie trzy tej samej wysokości, także gdy jeden podpis się zawinie
+                .clip(MaterialTheme.shapes.medium) // przycina też efekt kliknięcia (ripple) do zaokrąglonych rogów
+                .background(if (selected) MorsikGreen else MorsikGrey)
+                // toggleable = kliknięcie przełącza wartość; Role.Switch mówi TalkBackowi "przełącznik, włączony".
+                .toggleable(value = selected, role = Role.Switch, onValueChange = onChange)
+                .padding(horizontal = 4.dp, vertical = 10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterVertically),
+        ) {
+            // Ikona jest ozdobą (contentDescription = null), bo podpis pod nią mówi to samo.
+            Icon(icon, contentDescription = null, tint = contentColor, modifier = Modifier.size(22.dp))
             Text(label, style = MaterialTheme.typography.labelMedium, color = contentColor, textAlign = TextAlign.Center)
+        }
+        if (selected) {
+            // Ozdoba: stan czyta TalkBack z przełącznika, więc znaczek nie ma własnych semantyk.
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .offset(x = 9.dp, y = (-9).dp) // środek znaczka w rogu przycisku, głównie w odstępie
+                    .size(22.dp)
+                    .background(MorsikInk, CircleShape)
+                    .border(2.dp, Color.White, CircleShape)
+                    .clearAndSetSemantics {},
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Icons.Filled.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(12.dp))
+            }
         }
     }
 }
 
-/** Suwak długości jednostki: od 400 ms (wolno, lewo) do 170 ms (szybko, prawo). */
+/**
+ * Suwak długości jednostki: od 350 ms (wolno, lewo) do 50 ms (bardzo szybko, prawo).
+ * Prawe 40% (szybciej niż 170 ms, czyli ponad 3 błyski na sekundę) to szara strefa: kolor wyszarzały,
+ * uchwyt lekko pulsuje, a obok pojawia się ostrzeżenie tekstem.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SpeedControl(unitMs: Int, onUnitMsChange: (Int) -> Unit) {
-    val valueText = Strings.speedValue(unitMs)
+    val beyondSafe = MainUiState.isBeyondSafeSpeed(unitMs)
+    val valueText = if (beyondSafe) Strings.speedValueWithWarning(unitMs) else Strings.speedValue(unitMs)
     Column {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             SectionLabel(Strings.SpeedLabel, Modifier.weight(1f))
@@ -482,16 +574,67 @@ private fun SpeedControl(unitMs: Int, onUnitMsChange: (Int) -> Unit) {
                 contentDescription = Strings.SpeedLabel
                 stateDescription = valueText
             },
-            // Kolory bierze z motywu (primary = MorsikGreenDark), więc nie trzeba ich tu podawać.
+            thumb = { SpeedThumb(beyondSafe) },
+            track = { SpeedTrack(it) },
         )
-        Row(modifier = Modifier.fillMaxWidth()) {
-            SectionLabel(Strings.SpeedSlow, Modifier.weight(1f), heading = false)
-            SectionLabel(Strings.SpeedFast, heading = false)
+        // Podpisy pod suwakiem: "Wolno" na lewym końcu, "Szybko" dokładnie pod granicą szarej strefy,
+        // "Bardzo szybko" na prawym końcu. 10 dp z boku = połowa uchwytu, o tyle krótszy jest tor.
+        Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp)) {
+            SectionLabel(Strings.SpeedSlow, Modifier.align(Alignment.CenterStart), heading = false)
+            SectionLabel(
+                Strings.SpeedFast,
+                Modifier.align(BiasAlignment(horizontalBias = 2 * MainUiState.SafeZoneEnd - 1, verticalBias = 0f)),
+                heading = false,
+            )
+            SectionLabel(Strings.SpeedVeryFast, Modifier.align(Alignment.CenterEnd), heading = false)
         }
     }
 }
 
-/** Zielony przycisk "Nadaj" nad przyciskiem Stop. Aktywny, gdy jest co nadać i nic się nie nadaje. */
+/** Uchwyt suwaka: zielony; w szarej strefie wyszarzały i powoli mruga (przezroczystość 1 -> 0,85). */
+@Composable
+private fun SpeedThumb(beyondSafe: Boolean) {
+    val alpha = if (beyondSafe) {
+        // Animację uruchamiamy tylko w szarej strefie, poza nią nic się nie liczy.
+        rememberInfiniteTransition(label = "speedWarning").animateFloat(
+            initialValue = 1f,
+            targetValue = 0.85f,
+            animationSpec = infiniteRepeatable(tween(durationMillis = 1200, easing = LinearEasing), RepeatMode.Reverse),
+            label = "speedThumbAlpha",
+        ).value
+    } else {
+        1f
+    }
+    SliderDefaults.Thumb(
+        interactionSource = remember { MutableInteractionSource() },
+        modifier = Modifier.graphicsLayer { this.alpha = alpha },
+        colors = SliderDefaults.colors(thumbColor = if (beyondSafe) MorsikGreenMuted else MorsikGreen),
+    )
+}
+
+/**
+ * Tor suwaka rysowany ręcznie, bo ma dwa kolory: zielony do uchwytu, ale za granicą szarej strefy
+ * wyszarzały. Reszta toru (za uchwytem) jest szara, a jej strefa szybka ma zielonkawy odcień.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SpeedTrack(state: SliderState) {
+    val range = state.valueRange
+    val fraction = ((state.value - range.start) / (range.endInclusive - range.start)).coerceIn(0f, 1f)
+    Canvas(modifier = Modifier.fillMaxWidth().height(8.dp)) {
+        val corner = CornerRadius(size.height / 2)
+        val zoneStart = size.width * MainUiState.SafeZoneEnd
+        val thumbX = size.width * fraction
+        drawRoundRect(MorsikGrey, cornerRadius = corner)
+        clipRect(left = zoneStart) { drawRoundRect(MorsikGreenMuted.copy(alpha = 0.35f), cornerRadius = corner) }
+        clipRect(right = thumbX) { drawRoundRect(MorsikGreen, cornerRadius = corner) }
+        if (thumbX > zoneStart) {
+            clipRect(left = zoneStart, right = thumbX) { drawRoundRect(MorsikGreenMuted, cornerRadius = corner) }
+        }
+    }
+}
+
+/** Zielony przycisk "Nadaj" obok przycisku Stop. Aktywny, gdy jest co nadać i nic się nie nadaje. */
 @Composable
 private fun StartButton(enabled: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Button(
@@ -501,8 +644,8 @@ private fun StartButton(enabled: Boolean, onClick: () -> Unit, modifier: Modifie
         shape = MaterialTheme.shapes.medium,
         colors = ButtonDefaults.buttonColors(
             containerColor = MorsikGreen,
-            contentColor = MorsikInk,
-            disabledContainerColor = MorsikPink,
+            contentColor = Color.White, // biały na zielonym
+            disabledContainerColor = MorsikGrey,
             disabledContentColor = MorsikInkMuted,
         ),
     ) {
@@ -513,7 +656,7 @@ private fun StartButton(enabled: Boolean, onClick: () -> Unit, modifier: Modifie
 }
 
 /**
- * Czerwony przycisk Stop na dole ekranu.
+ * Przycisk Stop na dole ekranu: czerwony tylko, gdy coś się nadaje, w przeciwnym razie szary jak Nadaj.
  * Gdy nic nie jest nadawane, przycisk jest naprawdę wyłączony (enabled = false): nie da się go kliknąć,
  * a TalkBack mówi "wyłączony". Wcześniej tylko bladł, ale dalej był klikalny.
  */
@@ -527,8 +670,8 @@ internal fun StopButton(enabled: Boolean, onClick: () -> Unit, modifier: Modifie
         colors = ButtonDefaults.buttonColors(
             containerColor = MorsikRed,
             contentColor = Color.White,
-            // Wygląd wyłączonego przycisku: różowe tło i ciemny tekst, czyli nadal czytelny.
-            disabledContainerColor = MorsikPink,
+            // Wygląd wyłączonego przycisku: szare tło i ciemny tekst, czyli nadal czytelny.
+            disabledContainerColor = MorsikGrey,
             disabledContentColor = MorsikInkMuted,
         ),
     ) {

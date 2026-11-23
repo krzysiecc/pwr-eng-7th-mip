@@ -128,7 +128,7 @@ class MorsikViewModelTest {
     @Test
     fun speedIsKeptInAllowedRange() = runTest(dispatcher) {
         val vm = viewModel()
-        vm.onUnitMsChange(50)
+        vm.onUnitMsChange(10)
         assertEquals(MainUiState.FastestUnitMs, vm.main.value.unitMs)
         vm.onUnitMsChange(5000)
         assertEquals(MainUiState.SlowestUnitMs, vm.main.value.unitMs)
@@ -193,7 +193,7 @@ class MorsikViewModelTest {
     @Test
     fun speedChangeAppliesDuringTransmission() = runTest(dispatcher) {
         val vm = viewModel()
-        vm.onUnitMsChange(400)
+        vm.onUnitMsChange(350)
         vm.onMessageChange("EE") // kropka, przerwa 3, kropka
         vm.startMessage()
         advanceTimeBy(100)
@@ -201,7 +201,7 @@ class MorsikViewModelTest {
         vm.onUnitMsChange(200) // kolejne kroki już po 200 ms
         advanceUntilIdle()
 
-        // 400 (kropka) + 3 x 200 (przerwa) + 200 (kropka)
-        assertEquals(1200L, currentTime)
+        // 350 (kropka) + 3 x 200 (przerwa) + 200 (kropka)
+        assertEquals(1150L, currentTime)
     }
 }

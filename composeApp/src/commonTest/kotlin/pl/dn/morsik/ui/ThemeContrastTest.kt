@@ -41,23 +41,25 @@ class ThemeContrastTest {
     fun formulaGivesKnownValues() {
         // Sprawdzenie samego wzoru: czarny na białym to dokładnie 21 : 1, ten sam kolor to 1 : 1.
         assertTrue(contrast(Color.Black, Color.White) in 20.99..21.01)
-        assertTrue(contrast(MorsikPink, MorsikPink) in 0.99..1.01)
+        assertTrue(contrast(MorsikGrey, MorsikGrey) in 0.99..1.01)
     }
 
     @Test
     fun textColorsAreReadable() {
         assertContrast(4.5, MorsikInk, Color.White, "główny tekst na białym")
-        assertContrast(4.5, MorsikInk, MorsikPink, "tekst na różowym polu / kafelku")
-        assertContrast(4.5, MorsikInk, MorsikGreen, "tekst na zielonym (aktywny kafelek, włączony kanał)")
+        assertContrast(4.5, MorsikInk, MorsikGrey, "tekst na szarym polu / kafelku / menu")
+        assertContrast(4.5, Color.White, MorsikGreen, "biały tekst na zielonym (Nadaj, aktywny kafelek, włączony kanał)")
         assertContrast(4.5, MorsikInkMuted, Color.White, "przygaszony tekst (etykiety) na białym")
-        assertContrast(4.5, MorsikInkMuted, MorsikPink, "przygaszony tekst na różowym (wyłączony kanał, Stop)")
+        assertContrast(4.5, MorsikInkMuted, MorsikGrey, "przygaszony tekst na szarym (wyłączony kanał, Nadaj, Stop)")
         assertContrast(4.5, Color.White, MorsikRed, "biały napis na czerwonym (Stop, plakietka)")
         assertContrast(4.5, Color.White, MorsikInk, "biała ikona mikrofonu")
     }
 
     @Test
     fun controlsAreVisible() {
-        assertContrast(3.0, MorsikGreenDark, Color.White, "suwak na białym")
-        assertContrast(3.0, MorsikGreenDark, MorsikPink, "znak i obwódka w kole wskaźnika")
+        assertContrast(3.0, MorsikGreen, Color.White, "suwak na białym")
+        assertContrast(3.0, MorsikGreenMuted, Color.White, "uchwyt suwaka w szarej strefie")
+        assertContrast(3.0, MorsikGreen, MorsikGrey, "tor suwaka na szarym tle")
+        assertContrast(3.0, MorsikGreen, Color.White, "znak i obwódka w kole wskaźnika")
     }
 }

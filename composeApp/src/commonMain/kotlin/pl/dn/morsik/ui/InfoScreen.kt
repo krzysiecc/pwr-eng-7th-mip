@@ -43,7 +43,7 @@ internal fun ScreenTopBar(title: String, onBack: () -> Unit, modifier: Modifier 
             onClick = onBack,
             modifier = Modifier.size(48.dp),
             shape = MaterialTheme.shapes.medium,
-            colors = IconButtonDefaults.filledIconButtonColors(containerColor = MorsikPink, contentColor = MorsikInk),
+            colors = IconButtonDefaults.filledIconButtonColors(containerColor = MorsikGrey, contentColor = MorsikInk),
         ) {
             // AutoMirrored = strzałka sama się odwraca w językach pisanych od prawej do lewej.
             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = Strings.Back)
@@ -78,15 +78,15 @@ fun InfoScreen(title: String, sections: List<InfoSection>, onBack: () -> Unit, m
                 if (section.title != null) {
                     Text(
                         text = section.title,
-                        modifier = Modifier.padding(top = 8.dp).semantics { heading() },
-                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(top = 12.dp).semantics { heading() },
+                        style = MaterialTheme.typography.headlineSmall, // większy niż tekst pod nim
                         color = MorsikInk,
                     )
                 }
                 for (paragraph in section.paragraphs) {
                     Text(
                         text = if (section.bullets) "•  $paragraph" else paragraph,
-                        style = MaterialTheme.typography.bodyLarge,
+                        style = MaterialTheme.typography.bodyMedium, // mały, nie pogrubiony
                         color = MorsikInk,
                     )
                 }
