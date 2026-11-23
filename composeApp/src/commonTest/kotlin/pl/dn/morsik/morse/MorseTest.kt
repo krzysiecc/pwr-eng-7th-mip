@@ -6,17 +6,35 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
+// Testy jednostkowe kodera Morse'a (Morse.kt).
+// Uruchamianie: w Android Studio zielona strzałka obok nazwy klasy/testu,
+// albo w terminalu: ./gradlew :composeApp:testAndroidHostTest
+//
+// Każda funkcja z @Test to osobny test. assertEquals(oczekiwane, faktyczne) - test nie przechodzi,
+// gdy wartości są różne. Ostatni (opcjonalny) argument to komunikat pokazywany przy błędzie.
+
 class MorseTest {
 
+    // --- codeOf: kod pojedynczego znaku ---
+
     @Test
-    fun encodesSos() {
-        assertEquals("... --- ...", Morse.encodeToString("SOS"))
+    fun codeOfReturnsCodeForKnownCharacter() {
+        assertEquals("...", Morse.codeOf('S'))
+        assertEquals("-----", Morse.codeOf('0'))
+        assertEquals(".-.-.-", Morse.codeOf('.'))
     }
 
     @Test
-    fun ignoresLetterCase() {
-        assertEquals(Morse.encodeToString("SOS"), Morse.encodeToString("sos"))
-        assertEquals(Morse.encodeToString("ŻÓŁW"), Morse.encodeToString("żółw"))
+    fun codeOfIgnoresLetterCase() {
+        assertEquals(Morse.codeOf('S'), Morse.codeOf('s'))
+        assertEquals(Morse.codeOf('Ż'), Morse.codeOf('ż'))
+    }
+
+    @Test
+    fun codeOfReturnsNullForUnknownCharacter() {
+        assertNull(Morse.codeOf('#'))
+        assertNull(Morse.codeOf(' '))
+        assertNull(Morse.codeOf('é')) // litera spoza polskiego alfabetu
     }
 
     @Test
@@ -36,6 +54,19 @@ class MorseTest {
             assertEquals(code, Morse.codeOf(letter), "wielka litera $letter")
             assertEquals(code, Morse.codeOf(letter.lowercaseChar()), "mała litera ${letter.lowercaseChar()}")
         }
+    }
+
+    // --- encodeToString: cała wiadomość jako kropki i kreski ---
+
+    @Test
+    fun encodesSos() {
+        assertEquals("... --- ...", Morse.encodeToString("SOS"))
+    }
+
+    @Test
+    fun ignoresLetterCase() {
+        assertEquals(Morse.encodeToString("SOS"), Morse.encodeToString("sos"))
+        assertEquals(Morse.encodeToString("ŻÓŁW"), Morse.encodeToString("żółw"))
     }
 
     @Test
@@ -58,9 +89,34 @@ class MorseTest {
     }
 
     @Test
+    fun skipsUnknownCharactersWhenTransmitting() {
+        assertEquals(".- -...", Morse.encodeToString("A#B"))
+    }
+
+    @Test
+    fun dropsWordsWithNothingToTransmit() {
+        val words = Morse.encode("A ### B")
+
+        assertEquals(3, words.size) // encode zostawia słowo "###"...
+        assertFalse(words[1].isTransmittable)
+        assertEquals(".- / -...", Morse.encodeToString("A ### B")) // ...ale encodeToString je pomija
+    }
+
+    // --- encode: podział na słowa i znaki ---
+
+    @Test
     fun treatsAnyWhitespaceRunAsSingleWordGap() {
         assertEquals("... --- ... / ... --- ...", Morse.encodeToString("  SOS \t\n  SOS  "))
         assertEquals(2, Morse.encode("SOS   SOS").size)
+    }
+
+    @Test
+    fun keepsOriginalTextOfEveryCharacter() {
+        val letters = Morse.encode("ała").single().letters
+
+        // Tekst zostaje taki, jak wpisany (małe litery), kod jest ten sam co dla wielkich.
+        assertEquals(listOf("a", "ł", "a"), letters.map { it.text })
+        assertEquals(listOf(".-", ".-..-", ".-"), letters.map { it.code })
     }
 
     @Test
@@ -83,32 +139,37 @@ class MorseTest {
     }
 
     @Test
-    fun skipsUnknownCharactersWhenTransmitting() {
-        assertEquals(".- -...", Morse.encodeToString("A#B"))
-    }
-
-    @Test
-    fun treatsEmojiAsSingleUnknownCharacter() {
+    fun emojiHasNoCodeAndIsNotTransmitted() {
         val letters = Morse.encode("A😀").single().letters
 
-        assertEquals(listOf("A", "😀"), letters.map { it.text })
-        assertNull(letters[1].code)
+        assertEquals(".-", letters.first().code)
+        // Emoji w Kotlinie to dwa znaki Char (tzw. para surogatów) - żaden nie ma kodu.
+        assertTrue(letters.drop(1).none { it.isKnown })
+        assertEquals(".-", Morse.encodeToString("A😀"))
     }
+
+    // --- isKnown / isTransmittable ---
 
     @Test
-    fun dropsWordsWithNothingToTransmit() {
-        val words = Morse.encode("A ### B")
-
-        assertEquals(3, words.size)
-        assertFalse(words[1].isTransmittable)
-        assertEquals(".- / -...", Morse.encodeToString("A ### B"))
+    fun wordIsTransmittableWhenAnyLetterHasCode() {
+        assertTrue(MorseWord(listOf(MorseLetter("#", null), MorseLetter("A", ".-"))).isTransmittable)
+        assertFalse(MorseWord(listOf(MorseLetter("#", null))).isTransmittable)
+        assertFalse(MorseWord(emptyList()).isTransmittable)
     }
+
+    // --- sam alfabet ---
 
     @Test
     fun alphabetContainsAllRequiredCharacters() {
         val required = ('A'..'Z') + "ĄĆĘŁŃÓŚŹŻ".toList() + ('0'..'9') + ".,?!".toList()
         val missing = required.filter { it !in Morse.alphabet }
         assertTrue(missing.isEmpty(), "brakuje znaków: $missing")
+    }
+
+    @Test
+    fun alphabetKeepsDisplayOrder() {
+        // Ekran Pomocy pokaże znaki w kolejności z mapy - zaczynamy od A, B, C.
+        assertEquals(listOf('A', 'B', 'C'), Morse.alphabet.keys.take(3))
     }
 
     @Test
@@ -121,6 +182,7 @@ class MorseTest {
 
     @Test
     fun codesAreUnique() {
+        // groupBy grupuje znaki po kodzie; grupa z więcej niż jednym znakiem = duplikat.
         val duplicates = Morse.alphabet.entries
             .groupBy({ it.value }, { it.key })
             .filterValues { it.size > 1 }
