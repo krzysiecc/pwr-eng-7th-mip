@@ -26,7 +26,6 @@ import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -36,7 +35,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.backhandler.BackHandler
 import androidx.compose.ui.draw.blur
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.foundation.border
@@ -153,9 +151,9 @@ fun MainScreen(
     // Czy menu jest otwarte - to czysto "wizualny" stan, więc trzyma go sam ekran, a nie ViewModel.
     // rememberSaveable (zamiast remember) = przetrwa też obrót ekranu.
     var menuOpen by rememberSaveable { mutableStateOf(false) }
-    // Rozmycie ekranu pod menu rośnie płynnie. Modifier.blur działa od Androida 12; na starszych
-    // zostaje tylko półprzezroczysta zasłona z [MenuOverlay].
-    val blur by animateDpAsState(if (menuOpen) 16.dp else 0.dp, label = "menuBlur")
+    // Rozmycie włącza się od razu, bez animacji: animowany blur przerysowywał cały ekran w każdej klatce
+    // i menu zacinało się na telefonie. Modifier.blur działa od Androida 12; na starszych zostaje
+    // tylko półprzezroczysta zasłona z [MenuOverlay].
     val focusManager = LocalFocusManager.current
 
     // Systemowy przycisk/gest Wstecz najpierw zamyka menu (wygrywa z BackHandlerem w App, bo jest "głębiej").
@@ -168,7 +166,7 @@ fun MainScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .blur(blur)
+                .then(if (menuOpen) Modifier.blur(10.dp) else Modifier)
                 // Gdy menu jest otwarte, czytnik ekranu nie ma wchodzić w rozmyty ekran pod spodem.
                 .then(if (menuOpen) Modifier.clearAndSetSemantics {} else Modifier),
         ) {
@@ -260,15 +258,15 @@ private fun MenuOverlay(open: Boolean, onClose: () -> Unit, onOpen: (Screen) -> 
     }
     AnimatedVisibility(
         visible = open,
-        enter = slideInHorizontally(initialOffsetX = { it }) + fadeIn(),
-        exit = slideOutHorizontally(targetOffsetX = { it }) + fadeOut(),
+        // Samo przesunięcie, bez zanikania: fadeIn/fadeOut zmuszały do rysowania karty w osobnej warstwie.
+        enter = slideInHorizontally(initialOffsetX = { it }),
+        exit = slideOutHorizontally(targetOffsetX = { it }),
     ) {
         val shape = MaterialTheme.shapes.large
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(24.dp) // marginesy: karta nie dotyka krawędzi ekranu
-                .shadow(16.dp, shape)
                 .clip(shape)
                 .background(Color.White)
                 .border(2.dp, MorsikGrey, shape)
@@ -621,13 +619,14 @@ private fun ChannelToggle(
 /**
  * Suwak długości jednostki: od 350 ms (wolno, lewo) do 50 ms (bardzo szybko, prawo).
  * Prawe 40% (szybciej niż 170 ms, czyli ponad 3 błyski na sekundę) to szara strefa: kolor wyszarzały,
- * uchwyt lekko pulsuje, a obok pojawia się ostrzeżenie tekstem.
+ * napis "bardzo szybko" lekko mruga, a obok pojawia się ostrzeżenie tekstem.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SpeedControl(unitMs: Int, onUnitMsChange: (Int) -> Unit) {
     val beyondSafe = MainUiState.isBeyondSafeSpeed(unitMs)
     val valueText = if (beyondSafe) Strings.speedValueWithWarning(unitMs) else Strings.speedValue(unitMs)
+    val veryFastAlpha = if (beyondSafe) warningPulse() else 1f
     Column {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             SectionLabel(Strings.SpeedLabel, Modifier.weight(1f))
@@ -643,7 +642,13 @@ private fun SpeedControl(unitMs: Int, onUnitMsChange: (Int) -> Unit) {
                 contentDescription = Strings.SpeedLabel
                 stateDescription = valueText
             },
-            thumb = { SpeedThumb(beyondSafe) },
+                        // Uchwyt: zielony, w szarej strefie wyszarzały (bez animacji).
+            thumb = {
+                SliderDefaults.Thumb(
+                    interactionSource = remember { MutableInteractionSource() },
+                    colors = SliderDefaults.colors(thumbColor = if (beyondSafe) MorsikGreenMuted else MorsikGreen),
+                )
+            },
             track = { SpeedTrack(it) },
         )
         // Podpisy pod suwakiem: "Wolno" na lewym końcu, "Szybko" dokładnie pod granicą szarej strefy,
@@ -655,31 +660,24 @@ private fun SpeedControl(unitMs: Int, onUnitMsChange: (Int) -> Unit) {
                 Modifier.align(BiasAlignment(horizontalBias = 2 * MainUiState.SafeZoneEnd - 1, verticalBias = 0f)),
                 heading = false,
             )
-            SectionLabel(Strings.SpeedVeryFast, Modifier.align(Alignment.CenterEnd), heading = false)
+            SectionLabel(
+                Strings.SpeedVeryFast,
+                // Napis lekko mruga (przezroczystość 1 -> 0,85), gdy suwak jest w jego strefie.
+                Modifier.align(Alignment.CenterEnd).graphicsLayer { this.alpha = veryFastAlpha },
+                heading = false,
+            )
         }
     }
 }
 
-/** Uchwyt suwaka: zielony; w szarej strefie wyszarzały i powoli mruga (przezroczystość 1 -> 0,85). */
+/** Powolne pulsowanie przezroczystości 1 -> 0,85 (pół cyklu na 1,2 s). Wołać tylko, gdy ma działać. */
 @Composable
-private fun SpeedThumb(beyondSafe: Boolean) {
-    val alpha = if (beyondSafe) {
-        // Animację uruchamiamy tylko w szarej strefie, poza nią nic się nie liczy.
-        rememberInfiniteTransition(label = "speedWarning").animateFloat(
-            initialValue = 1f,
-            targetValue = 0.85f,
-            animationSpec = infiniteRepeatable(tween(durationMillis = 1200, easing = LinearEasing), RepeatMode.Reverse),
-            label = "speedThumbAlpha",
-        ).value
-    } else {
-        1f
-    }
-    SliderDefaults.Thumb(
-        interactionSource = remember { MutableInteractionSource() },
-        modifier = Modifier.graphicsLayer { this.alpha = alpha },
-        colors = SliderDefaults.colors(thumbColor = if (beyondSafe) MorsikGreenMuted else MorsikGreen),
-    )
-}
+private fun warningPulse(): Float = rememberInfiniteTransition(label = "speedWarning").animateFloat(
+    initialValue = 1f,
+    targetValue = 0.85f,
+    animationSpec = infiniteRepeatable(tween(durationMillis = 1200, easing = LinearEasing), RepeatMode.Reverse),
+    label = "speedLabelAlpha",
+).value
 
 /**
  * Tor suwaka rysowany ręcznie, bo ma dwa kolory: zielony do uchwytu, ale za granicą szarej strefy

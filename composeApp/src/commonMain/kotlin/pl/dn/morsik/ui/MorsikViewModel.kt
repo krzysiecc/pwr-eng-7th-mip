@@ -57,6 +57,9 @@ class MorsikViewModel(
     /** Trwające nadawanie (wiadomości albo jednego znaku z Pomocy) albo null. Anulowanie = Stop. */
     private var transmission: Job? = null
 
+    /** Kanały trwającego nadawania (do zmiany w locie przez [onChannelsChange]) albo null. */
+    private var liveChannels: LiveChannels? = null
+
     // ---- ekran główny ----
 
     fun onMessageChange(message: String) = _main.update { it.withMessage(message) }
@@ -66,7 +69,11 @@ class MorsikViewModel(
         if (!_main.value.isTransmitting) onMessageChange(text)
     }
 
-    fun onChannelsChange(channels: ChannelsUi) = _main.update { it.copy(channels = channels) }
+    /** Zmiana kanałów działa też w trakcie nadawania: odznaczony milknie od razu, zaznaczony dołącza. */
+    fun onChannelsChange(channels: ChannelsUi) {
+        _main.update { it.copy(channels = channels) }
+        liveChannels?.select(channels)
+    }
 
     /** Nowa szybkość z suwaka. coerceIn = przytnij do zakresu, gdyby przyszła wartość spoza niego. */
     fun onUnitMsChange(unitMs: Int) = _main.update {
@@ -125,20 +132,58 @@ class MorsikViewModel(
         previous?.cancel()
         transmission = viewModelScope.launch {
             previous?.join()
-            val channels = createChannels(_main.value.channels)
+            val channels = LiveChannels(createChannels, _main.value.channels)
+            liveChannels = channels
             try {
                 transmitter.transmit(
                     steps = Timeline.build(letters),
-                    channels = channels,
+                    channels = listOf(channels),
                     unitMs = { _main.value.unitMs }, // suwak działa na żywo
                     onProgress = onProgress,
                 )
             } finally {
                 // Po końcu albo po Stop: zwolnij kanały i wyczyść stan nadawania.
                 // (Silnik sam już zgasił kanały, release() tylko zwalnia zasoby.)
-                channels.forEach { it.release() }
+                channels.release()
+                if (liveChannels === channels) liveChannels = null
                 onEnd()
             }
+        }
+    }
+}
+
+/**
+ * Kanały jednego nadawania, które można przestawić w locie. Silnik widzi jeden [SignalChannel],
+ * a my pod spodem podmieniamy prawdziwe kanały, gdy użytkownik zmieni zaznaczenie:
+ * stare gasną i są zwalniane, nowe powstają i od razu dostają bieżący stan sygnału (włączony/wyłączony).
+ */
+private class LiveChannels(
+    private val create: (ChannelsUi) -> List<SignalChannel>,
+    private var selected: ChannelsUi,
+) : SignalChannel {
+    private var channels = create(selected)
+    private var on = false
+
+    fun select(new: ChannelsUi) {
+        if (new == selected) return
+        dispose()
+        selected = new
+        channels = create(new)
+        if (on) channels.forEach { runCatching { it.setOn(true) } }
+    }
+
+    override fun setOn(on: Boolean) {
+        this.on = on
+        channels.forEach { runCatching { it.setOn(on) } }
+    }
+
+    override fun release() = dispose()
+
+    /** Gasi i zwalnia obecne kanały. Błąd jednego nie może zatrzymać pozostałych. */
+    private fun dispose() {
+        channels.forEach {
+            runCatching { it.setOn(false) }
+            runCatching { it.release() }
         }
     }
 }

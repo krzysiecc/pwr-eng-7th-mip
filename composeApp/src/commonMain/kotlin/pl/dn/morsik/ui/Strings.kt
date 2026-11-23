@@ -26,9 +26,9 @@ object Strings {
     const val Sound = "Dźwięk"
 
     const val SpeedLabel = "SZYBKOŚĆ"
-    const val SpeedSlow = "Wolno"
-    const val SpeedFast = "Szybko"
-    const val SpeedVeryFast = "Bardzo szybko"
+    const val SpeedSlow = "wolno"
+    const val SpeedFast = "szybko"
+    const val SpeedVeryFast = "bardzo szybko"
     const val SpeedWarning = "szybkie miganie"
     const val Preview = "KOD MORSE'A"
     const val Expand = "rozwiń"

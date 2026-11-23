@@ -204,4 +204,26 @@ class MorsikViewModelTest {
         // 350 (kropka) + 3 x 200 (przerwa) + 200 (kropka)
         assertEquals(1150L, currentTime)
     }
+
+    @Test
+    fun changingChannelsDuringTransmissionSwapsThemImmediately() = runTest(dispatcher) {
+        val vm = viewModel()
+        vm.onUnitMsChange(200)
+        vm.onMessageChange("EE")
+        vm.startMessage()
+        advanceTimeBy(50) // trwa pierwsza kropka, sygnał jest włączony
+        runCurrent()
+        assertTrue(created.single().lit)
+
+        vm.onChannelsChange(ChannelsUi(flashlight = false, vibration = true, sound = true))
+
+        // Stare kanały gasną od razu i są zwolnione, nowe dostają bieżący stan (włączony).
+        assertFalse(created[0].lit)
+        assertTrue(created[0].released)
+        assertTrue(created[1].lit)
+
+        advanceUntilIdle()
+        assertFalse(created[1].lit)
+        assertTrue(created[1].released)
+    }
 }

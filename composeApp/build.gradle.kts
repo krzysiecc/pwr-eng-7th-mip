@@ -17,6 +17,9 @@ kotlin {
         // Testy jednostkowe uruchamiane na komputerze (bez telefonu):
         // ./gradlew :composeApp:testAndroidHostTest
         withHostTest {}
+
+        // Bez tego zasoby Compose (czcionka Rubik) nie trafiają do APK i aplikacja wywala się przy starcie.
+        androidResources { enable = true }
     }
 
     sourceSets {
@@ -28,6 +31,7 @@ kotlin {
             implementation(libs.compose.material3) // Button, TextField, Slider...
             implementation(libs.compose.material.icons) // ikony Icons.Filled.*
             implementation(libs.compose.ui)
+            implementation(libs.compose.components.resources) // czcionka Rubik z composeResources/font
             implementation(libs.compose.ui.backhandler) // BackHandler: systemowy przycisk/gest Wstecz
             implementation(libs.androidx.lifecycle.viewmodel.compose) // ViewModel: stan przetrwa obrót ekranu
             implementation(libs.compose.ui.tooling.preview) // adnotacja @Preview
@@ -37,6 +41,10 @@ kotlin {
             implementation(libs.kotlinx.coroutines.test) // runTest: testy z "wirtualnym" czasem
         }
     }
+}
+
+compose.resources {
+    packageOfResClass = "pl.dn.morsik.resources" // Res.font.rubik_bold itd.
 }
 
 dependencies {

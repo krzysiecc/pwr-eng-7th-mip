@@ -2,13 +2,20 @@ package pl.dn.morsik.ui
 
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import pl.dn.morsik.resources.Res
+import pl.dn.morsik.resources.rubik_bold
+import pl.dn.morsik.resources.rubik_extrabold
+import pl.dn.morsik.resources.rubik_regular
+import org.jetbrains.compose.resources.Font
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -69,21 +76,34 @@ private val MorsikColors = lightColorScheme(
     onError = Color.White,
 )
 
+// Czcionka Rubik (pliki w composeResources/font). Mamy trzy wagi i każdej styl przypisuje się wprost:
+//  * Regular   - zwykły tekst (body),
+//  * Bold      - nagłówki, przyciski i etykiety,
+//  * ExtraBold - tylko nazwa aplikacji MORSIK.
+// Pośrednie wagi (Medium, SemiBold) wypadałyby na najbliższą dostępną, więc ich nie używamy.
+// Light (300) mamy w assets/fonts, ale nie używamy: cienki tekst ma za mały kontrast przy 12-15 sp.
+@Composable
+private fun rememberMorsikFontFamily(): FontFamily = FontFamily(
+    Font(Res.font.rubik_regular, FontWeight.Normal),
+    Font(Res.font.rubik_bold, FontWeight.Bold),
+    Font(Res.font.rubik_extrabold, FontWeight.ExtraBold),
+)
+
 // Style tekstu. Nazwy (headlineMedium, labelSmall...) to standardowe "role" z Material 3,
 // a w kodzie ekranu używamy ich przez MaterialTheme.typography.<nazwa>.
 // sp = jednostka czcionki, która rośnie razem z ustawieniem "rozmiar czcionki" w telefonie.
-private val MorsikTypography = Typography(
-    headlineMedium = TextStyle(fontSize = 30.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.5).sp),
-    headlineSmall = TextStyle(fontSize = 24.sp, fontWeight = FontWeight.SemiBold),
-    titleLarge = TextStyle(fontSize = 26.sp, fontWeight = FontWeight.Bold),
-    titleMedium = TextStyle(fontSize = 18.sp, fontWeight = FontWeight.SemiBold),
-    bodyLarge = TextStyle(fontSize = 17.sp, fontWeight = FontWeight.Medium),
+private fun morsikTypography(font: FontFamily) = Typography(
+    headlineMedium = TextStyle(fontFamily = font, fontSize = 30.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-0.5).sp),
+    headlineSmall = TextStyle(fontFamily = font, fontSize = 24.sp, fontWeight = FontWeight.Bold),
+    titleLarge = TextStyle(fontFamily = font, fontSize = 26.sp, fontWeight = FontWeight.Bold),
+    titleMedium = TextStyle(fontFamily = font, fontSize = 18.sp, fontWeight = FontWeight.Bold),
+    bodyLarge = TextStyle(fontFamily = font, fontSize = 17.sp, fontWeight = FontWeight.Normal),
     // Zwykły tekst ekranów z treścią (Pomoc, deklaracja, O aplikacji): mały i nie pogrubiony.
-    bodyMedium = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Normal, lineHeight = 22.sp),
-    labelLarge = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.SemiBold),
-    labelMedium = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
+    bodyMedium = TextStyle(fontFamily = font, fontSize = 15.sp, fontWeight = FontWeight.Normal, lineHeight = 22.sp),
+    labelLarge = TextStyle(fontFamily = font, fontSize = 16.sp, fontWeight = FontWeight.Bold),
+    labelMedium = TextStyle(fontFamily = font, fontSize = 13.sp, fontWeight = FontWeight.Bold),
     // Najmniejszy tekst w aplikacji. Było 10 sp - za mało do wygodnego czytania, teraz 12 sp.
-    labelSmall = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.8.sp),
+    labelSmall = TextStyle(fontFamily = font, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp),
 )
 
 // Zaokrąglenia rogów. dp = jednostka niezależna od gęstości ekranu (na każdym telefonie wygląda podobnie).
@@ -99,10 +119,13 @@ private val MorsikShapes = Shapes(
  */
 @Composable
 fun MorsikTheme(content: @Composable () -> Unit) {
+    val typography = morsikTypography(rememberMorsikFontFamily())
     MaterialTheme(
         colorScheme = MorsikColors,
-        typography = MorsikTypography,
+        typography = typography,
         shapes = MorsikShapes,
-        content = content,
-    )
+    ) {
+        // Tekst bez własnego stylu (np. Text("...") bez style) też ma dostać Rubika.
+        ProvideTextStyle(typography.bodyLarge, content)
+    }
 }
