@@ -25,9 +25,12 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
+import androidx.compose.material.icons.filled.Accessibility
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.FlashlightOn
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.PlayArrow
@@ -35,6 +38,8 @@ import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Vibration
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
@@ -45,6 +50,10 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -54,6 +63,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
@@ -69,7 +80,7 @@ import androidx.compose.ui.unit.sp
 // * Funkcja z adnotacją @Composable opisuje kawałek interfejsu. Compose wywołuje ją ponownie
 //   ("rekompozycja") za każdym razem, gdy zmienią się jej parametry, i rysuje ekran od nowa.
 // * Ekran NIE trzyma własnego stanu. Dostaje gotowy [MainUiState] i funkcje "onCośtam",
-//   które woła, gdy użytkownik coś zrobi. Stan zmienia App.kt. To się nazywa "state hoisting"
+//   które woła, gdy użytkownik coś zrobi. Stan zmienia MorsikViewModel. To się nazywa "state hoisting"
 //   i pozwala pokazać ekran w podglądzie (MainScreenPreview.kt) z dowolnymi danymi.
 // * Modifier to łańcuch ustawień elementu: rozmiar, odstępy, tło, kliknięcia...
 //   KOLEJNOŚĆ MA ZNACZENIE: `.padding(8.dp).background(...)` daje odstęp NA ZEWNĄTRZ tła,
@@ -84,7 +95,7 @@ import androidx.compose.ui.unit.sp
  * @param onMessageChange wołane przy każdej zmianie tekstu w polu wiadomości
  * @param onDictate kliknięcie mikrofonu
  * @param onStart kliknięcie "Nadaj" albo "Wyślij" na klawiaturze
- * @param onMenu kliknięcie przycisku menu
+ * @param onOpen wybór pozycji z menu (Pomoc, deklaracja dostępności, O aplikacji)
  * @param onChannelsChange włączenie/wyłączenie kanału (latarka, wibracja, dźwięk)
  * @param onUnitMsChange przesunięcie suwaka szybkości (nowa wartość w ms)
  * @param onStop kliknięcie Stop
@@ -95,14 +106,15 @@ fun MainScreen(
     onMessageChange: (String) -> Unit,
     onDictate: () -> Unit,
     onStart: () -> Unit,
-    onMenu: () -> Unit,
+    onOpen: (Screen) -> Unit,
     onChannelsChange: (ChannelsUi) -> Unit,
     onUnitMsChange: (Int) -> Unit,
     onStop: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     // safeDrawingPadding = nie wchodzimy pod pasek stanu, wycięcie aparatu ani klawiaturę.
-    Column(modifier = modifier.fillMaxSize().safeDrawingPadding()) {
+    // paneTitle: po powrocie z Pomocy TalkBack ogłosi, że to znowu ekran główny.
+    Column(modifier = modifier.fillMaxSize().safeDrawingPadding().semantics { paneTitle = Strings.AppName }) {
         Column(
             modifier = Modifier
                 .weight(1f) // zajmij całe wolne miejsce nad przyciskiem Stop
@@ -110,7 +122,7 @@ fun MainScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp), // 12 dp odstępu między sekcjami
         ) {
-            Header(onMenu = onMenu)
+            Header(onOpen = onOpen)
             MessageField(
                 message = state.message,
                 onMessageChange = onMessageChange,
@@ -133,7 +145,7 @@ fun MainScreen(
 
 /** Górny pasek: nazwa aplikacji, plakietka z nazwą zapisaną Morse'em i przycisk menu. */
 @Composable
-private fun Header(onMenu: () -> Unit) {
+private fun Header(onOpen: (Screen) -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -145,7 +157,7 @@ private fun Header(onMenu: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Text(Strings.AppName, style = MaterialTheme.typography.headlineMedium)
+            Text(Strings.AppName, modifier = Modifier.semantics { heading() }, style = MaterialTheme.typography.headlineMedium)
             Text(
                 text = Strings.AppNameMorse,
                 modifier = Modifier
@@ -164,9 +176,22 @@ private fun Header(onMenu: () -> Unit) {
                 overflow = TextOverflow.Ellipsis, // ...a jeśli się nie mieści, na końcu "…" zamiast ucięcia
             )
         }
+        HeaderMenu(onOpen = onOpen)
+    }
+}
+
+/** Przycisk menu i rozwijane pod nim menu: Pomoc, Deklaracja dostępności, O aplikacji. */
+@Composable
+private fun HeaderMenu(onOpen: (Screen) -> Unit) {
+    // Czy menu jest rozwinięte - to czysto "wizualny" stan tego przycisku, więc trzyma go sam ekran,
+    // a nie ViewModel. rememberSaveable (zamiast remember) = przetrwa też obrót ekranu.
+    var expanded by rememberSaveable { mutableStateOf(false) }
+
+    // Box = menu pojawia się przy przycisku, który jest w tym samym Boxie.
+    Box {
         // FilledIconButton sam pilnuje minimalnego pola dotyku 48 dp i efektu kliknięcia.
         FilledIconButton(
-            onClick = onMenu,
+            onClick = { expanded = true },
             modifier = Modifier.size(48.dp),
             shape = MaterialTheme.shapes.medium,
             colors = IconButtonDefaults.filledIconButtonColors(containerColor = MorsikPink, contentColor = MorsikInk),
@@ -174,15 +199,38 @@ private fun Header(onMenu: () -> Unit) {
             // contentDescription = co powie TalkBack o tym przycisku.
             Icon(Icons.Filled.Menu, contentDescription = Strings.Menu)
         }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }, // dotknięcie obok albo Wstecz zamyka menu
+            containerColor = MorsikPink, // ciemny tekst na różowym: kontrast sprawdzony w ThemeContrastTest
+        ) {
+            MenuItem(Strings.Help, Icons.AutoMirrored.Filled.HelpOutline) { expanded = false; onOpen(Screen.Help) }
+            MenuItem(Strings.Accessibility, Icons.Filled.Accessibility) { expanded = false; onOpen(Screen.Accessibility) }
+            MenuItem(Strings.About, Icons.Filled.Info) { expanded = false; onOpen(Screen.About) }
+        }
     }
 }
 
-/** Mały, przygaszony nagłówek sekcji, np. "WIADOMOŚĆ". */
+/** Jedna pozycja menu. Ikona to ozdoba, TalkBack czyta podpis. Wysokość min. 48 dp zapewnia Material. */
 @Composable
-private fun SectionLabel(text: String, modifier: Modifier = Modifier) {
+private fun MenuItem(label: String, icon: ImageVector, onClick: () -> Unit) {
+    DropdownMenuItem(
+        text = { Text(label, style = MaterialTheme.typography.bodyLarge, color = MorsikInk) },
+        onClick = onClick,
+        leadingIcon = { Icon(icon, contentDescription = null, tint = MorsikInk) },
+    )
+}
+
+/**
+ * Mały, przygaszony nagłówek sekcji, np. "WIADOMOŚĆ".
+ * [heading] = TalkBack ogłasza go jako nagłówek i pozwala do niego przeskoczyć.
+ * Podpisy "Wolno" / "Szybko" pod suwakiem wyglądają tak samo, ale nagłówkami nie są.
+ */
+@Composable
+internal fun SectionLabel(text: String, modifier: Modifier = Modifier, heading: Boolean = true) {
     Text(
         text = text,
-        modifier = modifier,
+        modifier = modifier.semantics { if (heading) heading() },
         style = MaterialTheme.typography.labelSmall,
         color = MorsikInkMuted,
     )
@@ -437,8 +485,8 @@ private fun SpeedControl(unitMs: Int, onUnitMsChange: (Int) -> Unit) {
             // Kolory bierze z motywu (primary = MorsikGreenDark), więc nie trzeba ich tu podawać.
         )
         Row(modifier = Modifier.fillMaxWidth()) {
-            SectionLabel(Strings.SpeedSlow, Modifier.weight(1f))
-            SectionLabel(Strings.SpeedFast)
+            SectionLabel(Strings.SpeedSlow, Modifier.weight(1f), heading = false)
+            SectionLabel(Strings.SpeedFast, heading = false)
         }
     }
 }
@@ -470,7 +518,7 @@ private fun StartButton(enabled: Boolean, onClick: () -> Unit, modifier: Modifie
  * a TalkBack mówi "wyłączony". Wcześniej tylko bladł, ale dalej był klikalny.
  */
 @Composable
-private fun StopButton(enabled: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+internal fun StopButton(enabled: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Button(
         onClick = onClick,
         enabled = enabled,

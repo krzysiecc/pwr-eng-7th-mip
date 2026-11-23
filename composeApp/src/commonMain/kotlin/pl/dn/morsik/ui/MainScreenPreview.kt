@@ -18,7 +18,7 @@ private fun MainScreenPreviewContent(state: MainUiState) {
                 onMessageChange = {},
                 onDictate = {},
                 onStart = {},
-                onMenu = {},
+                onOpen = {},
                 onChannelsChange = {},
                 onUnitMsChange = {},
                 onStop = {},
@@ -46,4 +46,36 @@ private fun MainScreenIdlePreview() {
 @Composable
 private fun MainScreenLargeFontPreview() {
     MainScreenPreviewContent(MainUiState().withMessage("Gęślą jaźń"))
+}
+
+// ---- Pozostałe ekrany ----
+
+@Preview(name = "pomoc", showBackground = true, widthDp = 360, heightDp = 780)
+@Composable
+private fun HelpScreenPreview() {
+    MorsikTheme {
+        Surface(color = MaterialTheme.colorScheme.background) {
+            HelpScreen(state = HelpUiState(activeSymbol = "S"), onSend = {}, onStop = {}, onBack = {})
+        }
+    }
+}
+
+@Preview(name = "pomoc, duża czcionka", showBackground = true, widthDp = 360, heightDp = 780, fontScale = 2f)
+@Composable
+private fun HelpScreenLargeFontPreview() {
+    MorsikTheme {
+        Surface(color = MaterialTheme.colorScheme.background) {
+            HelpScreen(state = HelpUiState(), onSend = {}, onStop = {}, onBack = {})
+        }
+    }
+}
+
+@Preview(name = "deklaracja dostępności", showBackground = true, widthDp = 360, heightDp = 780)
+@Composable
+private fun AccessibilityScreenPreview() {
+    MorsikTheme {
+        Surface(color = MaterialTheme.colorScheme.background) {
+            InfoScreen(title = Strings.Accessibility, sections = Strings.accessibilityStatement("1.0.0"), onBack = {})
+        }
+    }
 }

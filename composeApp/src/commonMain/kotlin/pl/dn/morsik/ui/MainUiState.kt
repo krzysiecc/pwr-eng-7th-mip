@@ -48,10 +48,10 @@ fun displayCode(code: String): String =
 
 /**
  * Tekst dla czytnika ekranu (TalkBack), żeby zamiast "kreska, kropek" czytał po polsku:
- * `"A", ".-"` -> `"A: kropka kreska"`.
+ * `"A", ".-"` -> `"A: kropka kreska"`, a znaki interpunkcyjne po nazwie: `"?"` -> `"znak zapytania: ..."`.
  */
 fun spokenLetter(symbol: String, code: String): String =
-    symbol + ": " + code.map { if (it == Morse.DOT) Strings.SignalDot else Strings.SignalDash }
+    Strings.characterName(symbol) + ": " + code.map { if (it == Morse.DOT) Strings.SignalDot else Strings.SignalDash }
         .joinToString(" ") { it.lowercase() }
 
 /** Który sygnał jest teraz nadawany. `enum` = typ z zamkniętą listą wartości. */

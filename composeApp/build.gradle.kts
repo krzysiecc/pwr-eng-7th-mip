@@ -28,6 +28,8 @@ kotlin {
             implementation(libs.compose.material3) // Button, TextField, Slider...
             implementation(libs.compose.material.icons) // ikony Icons.Filled.*
             implementation(libs.compose.ui)
+            implementation(libs.compose.ui.backhandler) // BackHandler: systemowy przycisk/gest Wstecz
+            implementation(libs.androidx.lifecycle.viewmodel.compose) // ViewModel: stan przetrwa obrót ekranu
             implementation(libs.compose.ui.tooling.preview) // adnotacja @Preview
         }
         commonTest.dependencies {

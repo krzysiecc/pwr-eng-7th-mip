@@ -4,84 +4,79 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
-import pl.dn.morsik.transmit.SignalChannel
-import pl.dn.morsik.transmit.Timeline
-import pl.dn.morsik.transmit.Transmitter
-import pl.dn.morsik.ui.ChannelsUi
+import androidx.compose.ui.backhandler.BackHandler
+import androidx.lifecycle.viewmodel.compose.viewModel
+import pl.dn.morsik.ui.HelpScreen
+import pl.dn.morsik.ui.InfoScreen
 import pl.dn.morsik.ui.MainScreen
-import pl.dn.morsik.ui.MainUiState
 import pl.dn.morsik.ui.MorsikTheme
+import pl.dn.morsik.ui.MorsikViewModel
+import pl.dn.morsik.ui.Screen
+import pl.dn.morsik.ui.Strings
 
 /**
  * Korzeń interfejsu - to wywołuje MainActivity.
  *
- * Tu mieszka stan ekranu głównego i tu decydujemy, co się dzieje po kliknięciach.
- * Sam MainScreen tylko rysuje to, co dostanie, i zgłasza zdarzenia przez funkcje onXxx.
+ * Łączy widoki (ekrany) z ViewModelem: czyta z niego stan i przekazuje mu kliknięcia.
+ * Sama nic nie decyduje - logika jest w [MorsikViewModel], a ekrany tylko rysują.
  *
- * Rzeczy zależne od Androida wchodzą z zewnątrz (dzięki temu ten plik nie zna Androida):
- * @param createChannels tworzy kanały (latarka, wibracja, dźwięk) dla wybranych ustawień
- * @param startDictation otwiera dyktowanie i po rozpoznaniu woła podaną funkcję z tekstem
+ * @param viewModel stan i akcje aplikacji; MainActivity podaje swój (z prawdziwymi kanałami),
+ *   a domyślny, bez kanałów, wystarcza np. do podglądu
+ * @param startDictation otwiera systemowe dyktowanie (wynik trafia prosto do ViewModelu)
+ * @param appVersion numer wersji do ekranów "O aplikacji" i deklaracji dostępności
  */
+@OptIn(ExperimentalComposeUiApi::class) // BackHandler jest jeszcze oznaczony jako eksperymentalny
 @Composable
 fun App(
-    createChannels: (ChannelsUi) -> List<SignalChannel> = { emptyList() },
-    startDictation: (onResult: (String) -> Unit) -> Unit = {},
+    viewModel: MorsikViewModel = viewModel { MorsikViewModel() },
+    startDictation: () -> Unit = {},
+    appVersion: String = "",
 ) {
-    // mutableStateOf = wartość, której zmiana każe Compose przerysować ekran.
-    // remember = zachowaj tę wartość między kolejnymi wywołaniami App() (inaczej co klatkę byłby nowy, pusty stan).
-    // `by` + getValue/setValue = można pisać `state` zamiast `state.value`.
-    var state by remember { mutableStateOf(MainUiState()) }
+    // collectAsState = obserwuj StateFlow; każda nowa wartość przerysowuje ekran.
+    val main by viewModel.main.collectAsState()
+    val help by viewModel.help.collectAsState()
+    val screen by viewModel.screen.collectAsState()
 
-    // Korutyny: scope to "właściciel" zadań w tle; znika razem z ekranem i anuluje wtedy nadawanie.
-    val scope = rememberCoroutineScope()
-    // Trwające nadawanie albo null. Anulowanie tego zadania = Stop.
-    var transmission by remember { mutableStateOf<Job?>(null) }
-
-    /** Rozpoczyna nadawanie bieżącej wiadomości (jeśli jest co nadać i nic się już nie nadaje). */
-    fun start() {
-        if (transmission != null || !state.canStart) return
-        val steps = Timeline.build(state.letters) // lista kroków "sygnał / przerwa"
-        val channels = createChannels(state.channels)
-        transmission = scope.launch {
-            try {
-                Transmitter().transmit(
-                    steps = steps,
-                    channels = channels,
-                    unitMs = { state.unitMs }, // suwak działa na żywo
-                    onProgress = { state = state.copy(transmission = it) },
-                )
-            } finally {
-                // Po końcu albo po Stop: zwolnij kanały i wyczyść stan nadawania.
-                // (Silnik sam już zgasił kanały, release() tylko zwalnia zasoby.)
-                channels.forEach { it.release() }
-                state = state.copy(transmission = null)
-                transmission = null
-            }
-        }
-    }
+    // Systemowy przycisk/gest Wstecz na ekranach z menu wraca do ekranu głównego.
+    // Na ekranie głównym (enabled = false) działa jak zwykle, czyli zamyka aplikację.
+    BackHandler(enabled = screen != Screen.Main) { viewModel.back() }
 
     MorsikTheme {
         // Surface = białe tło na cały ekran w kolorze z motywu.
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-            MainScreen(
-                state = state,
-                // `it` = domyślna nazwa jedynego parametru lambdy (tu: nowy tekst / nowe kanały / nowe ms).
-                onMessageChange = { state = state.withMessage(it) },
-                onDictate = { if (!state.isTransmitting) startDictation { text -> state = state.withMessage(text) } },
-                onStart = ::start,
-                onMenu = {}, // TODO zadanie 12: menu i ekran Pomocy
-                onChannelsChange = { state = state.copy(channels = it) },
-                onUnitMsChange = { state = state.copy(unitMs = it) },
-                onStop = { transmission?.cancel() },
-            )
+            when (screen) {
+                Screen.Main -> MainScreen(
+                    state = main,
+                    // Referencja do funkcji (viewModel::onMessageChange) = to samo co { viewModel.onMessageChange(it) }.
+                    onMessageChange = viewModel::onMessageChange,
+                    onDictate = { if (!main.isTransmitting) startDictation() },
+                    onStart = viewModel::startMessage,
+                    onOpen = viewModel::open,
+                    onChannelsChange = viewModel::onChannelsChange,
+                    onUnitMsChange = viewModel::onUnitMsChange,
+                    onStop = viewModel::stop,
+                )
+                Screen.Help -> HelpScreen(
+                    state = help,
+                    onSend = viewModel::sendCharacter,
+                    onStop = viewModel::stop,
+                    onBack = viewModel::back,
+                )
+                Screen.Accessibility -> InfoScreen(
+                    title = Strings.Accessibility,
+                    sections = Strings.accessibilityStatement(appVersion),
+                    onBack = viewModel::back,
+                )
+                Screen.About -> InfoScreen(
+                    title = Strings.About,
+                    sections = Strings.about(appVersion),
+                    onBack = viewModel::back,
+                )
+            }
         }
     }
 }
