@@ -48,6 +48,16 @@ class MainUiStateTest {
         assertTrue(state.channels.sound)
     }
 
+    // --- canStart ---
+
+    @Test
+    fun canStartOnlyWithMessageAndWhenIdle() {
+        assertFalse(MainUiState().canStart) // pusta wiadomość
+        assertFalse(MainUiState().withMessage("###").canStart) // nic do nadania
+        assertTrue(MainUiState().withMessage("SOS").canStart)
+        assertFalse(sosAt(letter = 0, symbol = 0).canStart) // już nadaje
+    }
+
     // --- activeLetter / activeSignal / isTransmitting ---
 
     @Test

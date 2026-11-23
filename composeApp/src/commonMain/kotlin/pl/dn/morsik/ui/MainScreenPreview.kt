@@ -17,6 +17,7 @@ private fun MainScreenPreviewContent(state: MainUiState) {
                 state = state,
                 onMessageChange = {},
                 onDictate = {},
+                onStart = {},
                 onMenu = {},
                 onChannelsChange = {},
                 onUnitMsChange = {},

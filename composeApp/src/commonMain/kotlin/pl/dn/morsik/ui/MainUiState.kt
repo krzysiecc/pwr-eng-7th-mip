@@ -60,7 +60,7 @@ enum class Signal { Dot, Dash }
 /**
  * Gdzie jesteśmy w nadawaniu: która litera ([activeLetter], indeks w `letters`),
  * który znak tej litery ([activeSymbol], indeks w jej kodzie) i czy sygnał jest teraz włączony.
- * Wypełni to silnik nadawania (zadanie 7), na razie ustawiamy to tylko w [MainUiState.Demo].
+ * Wypełnia to silnik nadawania ([pl.dn.morsik.transmit.Transmitter]), a w [MainUiState.Demo] ustawiamy to "na sztywno".
  */
 data class TransmissionUi(
     val activeLetter: Int,
@@ -92,6 +92,9 @@ data class MainUiState(
 ) {
     /** `true`, gdy trwa nadawanie. */
     val isTransmitting: Boolean get() = transmission != null
+
+    /** Można zacząć nadawać: jest co nadać i nic się już nie nadaje. */
+    val canStart: Boolean get() = !isTransmitting && letters.isNotEmpty()
 
     /**
      * Litera, która jest teraz nadawana, albo `null`.

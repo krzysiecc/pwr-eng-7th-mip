@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -28,6 +30,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.FlashlightOn
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Vibration
 import androidx.compose.material3.Button
@@ -54,6 +57,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -79,6 +83,7 @@ import androidx.compose.ui.unit.sp
  * @param state wszystko, co ma być widać na ekranie
  * @param onMessageChange wołane przy każdej zmianie tekstu w polu wiadomości
  * @param onDictate kliknięcie mikrofonu
+ * @param onStart kliknięcie "Nadaj" albo "Wyślij" na klawiaturze
  * @param onMenu kliknięcie przycisku menu
  * @param onChannelsChange włączenie/wyłączenie kanału (latarka, wibracja, dźwięk)
  * @param onUnitMsChange przesunięcie suwaka szybkości (nowa wartość w ms)
@@ -89,6 +94,7 @@ fun MainScreen(
     state: MainUiState,
     onMessageChange: (String) -> Unit,
     onDictate: () -> Unit,
+    onStart: () -> Unit,
     onMenu: () -> Unit,
     onChannelsChange: (ChannelsUi) -> Unit,
     onUnitMsChange: (Int) -> Unit,
@@ -105,14 +111,23 @@ fun MainScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp), // 12 dp odstępu między sekcjami
         ) {
             Header(onMenu = onMenu)
-            MessageField(message = state.message, onMessageChange = onMessageChange, onDictate = onDictate)
+            MessageField(
+                message = state.message,
+                onMessageChange = onMessageChange,
+                onDictate = onDictate,
+                onStart = onStart,
+                readOnly = state.isTransmitting, // w trakcie nadawania nie zmieniamy tekstu
+            )
             LetterPreview(letters = state.letters, activeLetter = state.transmission?.activeLetter)
             StatusLine(state = state)
             SignalIndicator(signal = state.activeSignal, signalOn = state.transmission?.signalOn == true)
             ChannelToggles(channels = state.channels, onChange = onChannelsChange)
             SpeedControl(unitMs = state.unitMs, onUnitMsChange = onUnitMsChange)
         }
-        StopButton(enabled = state.isTransmitting, onClick = onStop, modifier = Modifier.padding(16.dp))
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            StartButton(enabled = state.canStart, onClick = onStart)
+            StopButton(enabled = state.isTransmitting, onClick = onStop)
+        }
     }
 }
 
@@ -175,7 +190,13 @@ private fun SectionLabel(text: String, modifier: Modifier = Modifier) {
 
 /** Pole do wpisania wiadomości i przycisk dyktowania obok. */
 @Composable
-private fun MessageField(message: String, onMessageChange: (String) -> Unit, onDictate: () -> Unit) {
+private fun MessageField(
+    message: String,
+    onMessageChange: (String) -> Unit,
+    onDictate: () -> Unit,
+    onStart: () -> Unit,
+    readOnly: Boolean,
+) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         SectionLabel(Strings.MessageLabel)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -186,6 +207,10 @@ private fun MessageField(message: String, onMessageChange: (String) -> Unit, onD
                 placeholder = { Text(Strings.MessagePlaceholder, color = MorsikInkMuted) },
                 textStyle = MaterialTheme.typography.titleMedium,
                 singleLine = true,
+                readOnly = readOnly,
+                // Przycisk akcji na klawiaturze zmienia się na "Wyślij" i od razu rozpoczyna nadawanie.
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                keyboardActions = KeyboardActions(onSend = { onStart() }),
                 shape = MaterialTheme.shapes.medium,
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = MorsikPink,
@@ -415,6 +440,27 @@ private fun SpeedControl(unitMs: Int, onUnitMsChange: (Int) -> Unit) {
             SectionLabel(Strings.SpeedSlow, Modifier.weight(1f))
             SectionLabel(Strings.SpeedFast)
         }
+    }
+}
+
+/** Zielony przycisk "Nadaj" nad przyciskiem Stop. Aktywny, gdy jest co nadać i nic się nie nadaje. */
+@Composable
+private fun StartButton(enabled: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Button(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = modifier.fillMaxWidth().heightIn(min = 56.dp),
+        shape = MaterialTheme.shapes.medium,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = MorsikGreen,
+            contentColor = MorsikInk,
+            disabledContainerColor = MorsikPink,
+            disabledContentColor = MorsikInkMuted,
+        ),
+    ) {
+        Icon(Icons.Filled.PlayArrow, contentDescription = null, modifier = Modifier.size(20.dp))
+        Spacer(Modifier.width(8.dp))
+        Text(Strings.Start, style = MaterialTheme.typography.labelLarge)
     }
 }
 

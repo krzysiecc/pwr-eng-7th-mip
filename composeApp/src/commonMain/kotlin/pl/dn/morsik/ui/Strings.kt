@@ -29,6 +29,7 @@ object Strings {
     const val SpeedSlow = "Wolno"
     const val SpeedFast = "Szybko"
 
+    const val Start = "Nadaj"
     const val Stop = "Stop"
 
     /** Linia statusu podczas nadawania, np. "NADAWANIE · LITERA O · ZNAK 2 Z 3". */
