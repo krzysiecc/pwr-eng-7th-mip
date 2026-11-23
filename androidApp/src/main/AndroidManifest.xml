@@ -2,9 +2,10 @@
 <!-- Manifest = "wizytówka" aplikacji dla systemu: nazwa, ekrany, uprawnienia. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Tu dojdą uprawnienia, gdy będą kanały i dyktowanie, np.:
-         <uses-permission android:name="android.permission.VIBRATE" />
-         <uses-permission android:name="android.permission.RECORD_AUDIO" /> -->
+    <!-- Wibracja wymaga tego uprawnienia (przyznawane automatycznie przy instalacji, bez pytania).
+         Latarka i dźwięk ani dyktowanie (przez systemowe okno rozpoznawania mowy) uprawnień nie wymagają,
+         więc dostęp do mikrofonu nie jest potrzebny. -->
+    <uses-permission android:name="android.permission.VIBRATE" />
 
     <application
         android:allowBackup="true"
