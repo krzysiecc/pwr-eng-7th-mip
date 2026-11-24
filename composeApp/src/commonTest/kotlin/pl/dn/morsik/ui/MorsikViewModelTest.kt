@@ -226,4 +226,20 @@ class MorsikViewModelTest {
         assertFalse(created[1].lit)
         assertTrue(created[1].released)
     }
+
+    @Test
+    fun backFromMenuScreenReturnsToOpenMenu() = runTest(dispatcher) {
+        val vm = viewModel()
+        vm.setMenuOpen(true)
+        vm.open(Screen.Help)
+        assertEquals(Screen.Help, vm.screen.value)
+
+        vm.back()
+
+        assertEquals(Screen.Main, vm.screen.value)
+        assertTrue(vm.main.value.menuOpen)
+
+        vm.setMenuOpen(false) // strzałka w menu
+        assertFalse(vm.main.value.menuOpen)
+    }
 }

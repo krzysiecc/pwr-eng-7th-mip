@@ -115,7 +115,13 @@ class MorsikViewModel(
         _screen.value = screen
     }
 
-    /** Przycisk Wstecz na ekranach z menu: zawsze wraca do ekranu głównego. */
+    /** Otwiera albo zamyka menu na ekranie głównym. */
+    fun setMenuOpen(open: Boolean) = _main.update { it.copy(menuOpen = open) }
+
+    /**
+     * Przycisk Wstecz na ekranach z menu: wraca do ekranu głównego z otwartym menu, z którego tam weszliśmy.
+     * (menuOpen zostaje `true` przez cały pobyt w Pomocy itd., a zamyka je dopiero strzałka w menu.)
+     */
     fun back() = open(Screen.Main)
 
     /**

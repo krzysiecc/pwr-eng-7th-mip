@@ -89,6 +89,8 @@ data class MainUiState(
     val transmission: TransmissionUi? = null,
     val channels: ChannelsUi = ChannelsUi(),
     val unitMs: Int = DefaultUnitMs,
+    /** Czy otwarte jest menu (karta nad rozmytym ekranem). Zostaje `true` także na ekranach otwartych z menu. */
+    val menuOpen: Boolean = false,
 ) {
     /** `true`, gdy trwa nadawanie. */
     val isTransmitting: Boolean get() = transmission != null

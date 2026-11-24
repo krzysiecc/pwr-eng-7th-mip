@@ -56,6 +56,7 @@ fun App(
                     onDictate = { if (!main.isTransmitting) startDictation() },
                     onStart = viewModel::startMessage,
                     onOpen = viewModel::open,
+                    onMenuOpenChange = viewModel::setMenuOpen,
                     onChannelsChange = viewModel::onChannelsChange,
                     onUnitMsChange = viewModel::onUnitMsChange,
                     onStop = viewModel::stop,

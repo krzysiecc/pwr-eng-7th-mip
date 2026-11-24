@@ -17,6 +17,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.ui.platform.LocalUriHandler
+import org.jetbrains.compose.resources.painterResource
+import pl.dn.morsik.resources.Res
+import pl.dn.morsik.resources.ic_github
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -83,6 +87,7 @@ fun InfoScreen(title: String, sections: List<InfoSection>, onBack: () -> Unit, m
                         color = MorsikInk,
                     )
                 }
+                if (section.link != null) GitHubLink(section.link)
                 for (paragraph in section.paragraphs) {
                     Text(
                         text = if (section.bullets) "•  $paragraph" else paragraph,
@@ -92,5 +97,22 @@ fun InfoScreen(title: String, sections: List<InfoSection>, onBack: () -> Unit, m
                 }
             }
         }
+    }
+}
+
+/**
+ * Ikona GitHuba otwierająca repozytorium w przeglądarce. Sama ikona nic nie mówi czytnikowi ekranu,
+ * dlatego przycisk ma opis [Strings.SourceCode]. Rozmiar 56 dp = wygodne pole dotyku.
+ */
+@Composable
+private fun GitHubLink(url: String) {
+    val uriHandler = LocalUriHandler.current
+    FilledIconButton(
+        onClick = { uriHandler.openUri(url) },
+        modifier = Modifier.size(56.dp),
+        shape = MaterialTheme.shapes.medium,
+        colors = IconButtonDefaults.filledIconButtonColors(containerColor = MorsikGrey, contentColor = MorsikInk),
+    ) {
+        Icon(painterResource(Res.drawable.ic_github), contentDescription = Strings.SourceCode, modifier = Modifier.size(28.dp))
     }
 }

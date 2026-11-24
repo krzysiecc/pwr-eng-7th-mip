@@ -131,6 +131,7 @@ import androidx.compose.ui.unit.sp
  * @param onDictate kliknięcie mikrofonu
  * @param onStart kliknięcie "Nadaj" albo "Wyślij" na klawiaturze
  * @param onOpen wybór pozycji z menu (Pomoc, deklaracja dostępności, O aplikacji)
+ * @param onMenuOpenChange otwarcie albo zamknięcie menu
  * @param onChannelsChange włączenie/wyłączenie kanału (latarka, wibracja, dźwięk)
  * @param onUnitMsChange przesunięcie suwaka szybkości (nowa wartość w ms)
  * @param onStop kliknięcie Stop
@@ -143,21 +144,22 @@ fun MainScreen(
     onDictate: () -> Unit,
     onStart: () -> Unit,
     onOpen: (Screen) -> Unit,
+    onMenuOpenChange: (Boolean) -> Unit,
     onChannelsChange: (ChannelsUi) -> Unit,
     onUnitMsChange: (Int) -> Unit,
     onStop: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // Czy menu jest otwarte - to czysto "wizualny" stan, więc trzyma go sam ekran, a nie ViewModel.
-    // rememberSaveable (zamiast remember) = przetrwa też obrót ekranu.
-    var menuOpen by rememberSaveable { mutableStateOf(false) }
+    // Czy menu jest otwarte, trzyma stan (state.menuOpen), a nie sam ekran: dzięki temu po wyjściu z Pomocy
+    // strzałka Wstecz wraca do otwartego menu, a nie od razu na ekran główny.
+    val menuOpen = state.menuOpen
     // Rozmycie włącza się od razu, bez animacji: animowany blur przerysowywał cały ekran w każdej klatce
     // i menu zacinało się na telefonie. Modifier.blur działa od Androida 12; na starszych zostaje
     // tylko półprzezroczysta zasłona z [MenuOverlay].
     val focusManager = LocalFocusManager.current
 
     // Systemowy przycisk/gest Wstecz najpierw zamyka menu (wygrywa z BackHandlerem w App, bo jest "głębiej").
-    BackHandler(enabled = menuOpen) { menuOpen = false }
+    BackHandler(enabled = menuOpen) { onMenuOpenChange(false) }
 
     // Box = elementy jeden na drugim: ekran, a nad nim (gdy menu otwarte) zasłona i menu.
     // safeDrawingPadding = nie wchodzimy pod pasek stanu, wycięcie aparatu ani klawiaturę.
@@ -179,7 +181,7 @@ fun MainScreen(
             ) {
                 Header(onMenu = {
                     focusManager.clearFocus() // chowa klawiaturę, żeby nie wisiała nad menu
-                    menuOpen = true
+                    onMenuOpenChange(true)
                 })
                 MessageField(
                     message = state.message,
@@ -202,11 +204,8 @@ fun MainScreen(
         }
         MenuOverlay(
             open = menuOpen,
-            onClose = { menuOpen = false },
-            onOpen = { screen ->
-                menuOpen = false
-                onOpen(screen)
-            },
+            onClose = { onMenuOpenChange(false) },
+            onOpen = onOpen, // menu zostaje "otwarte" pod ekranem, do którego przechodzimy
         )
     }
 }
@@ -625,7 +624,7 @@ private fun ChannelToggle(
 @Composable
 private fun SpeedControl(unitMs: Int, onUnitMsChange: (Int) -> Unit) {
     val beyondSafe = MainUiState.isBeyondSafeSpeed(unitMs)
-    val valueText = if (beyondSafe) Strings.speedValueWithWarning(unitMs) else Strings.speedValue(unitMs)
+    val valueText = Strings.speedValue(unitMs)
     val veryFastAlpha = if (beyondSafe) warningPulse() else 1f
     Column {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -640,7 +639,7 @@ private fun SpeedControl(unitMs: Int, onUnitMsChange: (Int) -> Unit) {
             // Bez tego TalkBack czytałby procenty, które przy odwróconym suwaku nic nie mówią.
             modifier = Modifier.semantics {
                 contentDescription = Strings.SpeedLabel
-                stateDescription = valueText
+                stateDescription = Strings.speedValueSpoken(unitMs, beyondSafe)
             },
                         // Uchwyt: zielony, w szarej strefie wyszarzały (bez animacji).
             thumb = {

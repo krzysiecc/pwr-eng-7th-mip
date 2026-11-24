@@ -150,6 +150,6 @@ class MainUiStateTest {
 
     @Test
     fun speedTextShowsMilliseconds() {
-        assertEquals("250 ms / jednostka", Strings.speedValue(250))
+        assertEquals("250 ms / jedn.", Strings.speedValue(250))
     }
 }

@@ -15,6 +15,7 @@ object Strings {
     const val Dictate = "Dyktuj"
     const val Menu = "Menu"
     const val Back = "Wstecz"
+    const val SourceCode = "Kod źródłowy na GitHubie, otwiera przeglądarkę"
 
     const val StatusIdle = "GOTOWY DO NADAWANIA"
     const val SignalDot = "Kropka"
@@ -29,6 +30,7 @@ object Strings {
     const val SpeedSlow = "wolno"
     const val SpeedFast = "szybko"
     const val SpeedVeryFast = "bardzo szybko"
+    /** Tylko dla czytnika ekranu (nie jest wyświetlane): dopisek do wartości suwaka w szarej strefie. */
     const val SpeedWarning = "szybkie miganie"
     const val Preview = "KOD MORSE'A"
     const val Expand = "rozwiń"
@@ -44,10 +46,11 @@ object Strings {
         "NADAWANIE · LITERA $letter · ZNAK $symbolNumber Z $symbolCount"
 
     /** Opis szybkości obok suwaka, np. "250 ms / jednostka". `$unitMs` wstawia wartość zmiennej do tekstu. */
-    fun speedValue(unitMs: Int) = "$unitMs ms / jednostka"
+    fun speedValue(unitMs: Int) = "$unitMs ms / jedn."
 
-    /** Jak [speedValue], ale w szarej strefie suwaka z ostrzeżeniem, żeby nie było go widać tylko po kolorze. */
-    fun speedValueWithWarning(unitMs: Int) = "$unitMs ms / jednostka · $SpeedWarning"
+    /** Jak [speedValue], ale z ostrzeżeniem w szarej strefie suwaka. Czyta je TalkBack, na ekranie go nie ma. */
+    fun speedValueSpoken(unitMs: Int, beyondSafe: Boolean) =
+        if (beyondSafe) "$unitMs ms na jednostkę, $SpeedWarning" else "$unitMs ms na jednostkę"
 
     // ---- Menu (pozycje są też tytułami otwieranych ekranów) ----
 
@@ -158,8 +161,8 @@ object Strings {
                     "można wpisać z klawiatury.",
                 "Szara strefa suwaka (szybciej niż 170 ms na jednostkę) pozwala na miganie częściej niż " +
                     "3 razy na sekundę, a to nie spełnia kryterium WCAG 2.3.1 i może być groźne dla osób " +
-                    "z padaczką światłoczułą. Strefa jest oznaczona kolorem, podpisem i ostrzeżeniem " +
-                    "w tekście obok suwaka.",
+                    "z padaczką światłoczułą. Strefa jest oznaczona kolorem, migającym napisem \"bardzo szybko\" " +
+                    "oraz ostrzeżeniem czytanym przez czytnik ekranu.",
                 "Aplikacja nie ma trybu ciemnego.",
                 "Aplikacji nie testowały jeszcze osoby z niepełnosprawnościami.",
             ),
@@ -181,11 +184,10 @@ object Strings {
         InfoSection(
             title = "Autorzy",
             paragraphs = listOf(
-                "Zespół DN, przedmiot Programowanie Interfejsów Mobilnych, Politechnika Wrocławska, " +
-                    "semestr zimowy 2026/27.",
+                "Zespół DN\nProgramowanie interfejsów mobilnych\nPolitechnika Wrocławska\nzima 26/27",
             ),
         ),
-        InfoSection(title = "Kod źródłowy", paragraphs = listOf(ProjectUrl)),
+        InfoSection(title = "Kod źródłowy", paragraphs = emptyList(), link = ProjectUrl),
         InfoSection(title = "Licencja", paragraphs = listOf("MIT")),
     )
 }
@@ -193,5 +195,11 @@ object Strings {
 /**
  * Fragment ekranu tekstowego (deklaracja, O aplikacji): nagłówek (albo brak) i akapity pod nim.
  * [bullets] = `true`, gdy akapity to punkty listy (każdy dostaje kropkę na początku).
+ * [link] = adres, który ekran pokazuje jako ikonę GitHuba otwierającą stronę.
  */
-data class InfoSection(val title: String?, val paragraphs: List<String>, val bullets: Boolean = false)
+data class InfoSection(
+    val title: String?,
+    val paragraphs: List<String>,
+    val bullets: Boolean = false,
+    val link: String? = null,
+)
