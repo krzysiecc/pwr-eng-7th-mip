@@ -48,12 +48,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-/**
- * Ekran Pomocy (zadanie 12): krótka instrukcja i tabela wszystkich znaków.
- * Dotknięcie znaku nadaje go od razu, na kanałach i z szybkością ustawionymi na ekranie głównym.
- *
- * @param onSend dotknięcie kafelka ze znakiem
- */
+
 @Composable
 fun HelpScreen(
     state: HelpUiState,

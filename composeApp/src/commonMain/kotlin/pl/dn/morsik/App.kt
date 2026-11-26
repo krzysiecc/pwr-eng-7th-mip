@@ -22,14 +22,13 @@ import pl.dn.morsik.ui.Strings
  * Korzeń interfejsu - to wywołuje MainActivity.
  *
  * Łączy widoki (ekrany) z ViewModelem: czyta z niego stan i przekazuje mu kliknięcia.
- * Sama nic nie decyduje - logika jest w [MorsikViewModel], a ekrany tylko rysują.
  *
  * @param viewModel stan i akcje aplikacji; MainActivity podaje swój (z prawdziwymi kanałami),
  *   a domyślny, bez kanałów, wystarcza np. do podglądu
  * @param startDictation otwiera systemowe dyktowanie (wynik trafia prosto do ViewModelu)
  * @param appVersion numer wersji do ekranów "O aplikacji" i deklaracji dostępności
  */
-@OptIn(ExperimentalComposeUiApi::class) // BackHandler jest jeszcze oznaczony jako eksperymentalny
+@OptIn(ExperimentalComposeUiApi::class) 
 @Composable
 fun App(
     viewModel: MorsikViewModel = viewModel { MorsikViewModel() },
